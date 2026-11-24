@@ -220,6 +220,7 @@ export default function App(): React.JSX.Element {
                       value={draft}
                       models={pi.models}
                       state={pi.state}
+                      stats={pi.stats}
                       isConnecting={pi.isConnecting}
                       isStreaming={pi.isStreaming}
                       onChange={setDraft}

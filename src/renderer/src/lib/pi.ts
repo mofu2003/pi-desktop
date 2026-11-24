@@ -109,7 +109,7 @@ export function contextPercent(
   stats?: PiSessionStats | null
 ): number | undefined {
   const percent = stats?.contextUsage?.percent
-  return typeof percent === 'number' ? Math.round(percent) : undefined
+  return typeof percent === 'number' && Number.isFinite(percent) && percent >= 0 ? percent : undefined
 }
 
 export function messageKey(message: AgentMessage): string {

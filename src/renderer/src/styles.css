@@ -112,6 +112,32 @@ body {
   margin-inline: auto;
 }
 
+.context-usage-ring {
+  flex: none;
+  inline-size: var(--spacing-5);
+  block-size: var(--spacing-5);
+  border-radius: var(--radius-full);
+  background: conic-gradient(var(--color-data-categorical-blue) var(--context-progress), var(--color-border) 0);
+  mask: radial-gradient(circle closest-side, transparent calc(100% - var(--spacing-0-5)),
+    black calc(100% - var(--spacing-0-5) + 5%));
+}
+
+.context-usage-panel .astryx-progress-bar-fill {
+  background-color: var(--color-data-categorical-blue);
+}
+
+.context-usage-marker {
+  flex: none;
+  inline-size: var(--spacing-1-5);
+  block-size: var(--spacing-1-5);
+  border-radius: var(--radius-full);
+}
+
+.context-usage-totals {
+  padding-block-start: var(--spacing-2);
+  border-block-start: var(--border-width) solid var(--color-border);
+}
+
 .chat-message-column {
   width: 100%;
   max-width: 760px;

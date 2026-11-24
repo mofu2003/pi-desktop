@@ -7,10 +7,12 @@ import { HStack } from '@astryxdesign/core/Stack'
 import { Text } from '@astryxdesign/core/Text'
 import type {
   PiModel,
+  PiSessionStats,
   PiSessionState,
   ThinkingLevel
 } from '../../../shared/types'
 import { modelLabel } from '../lib/pi'
+import { ContextUsageIndicator } from './ContextUsageIndicator'
 
 const THINKING_LEVELS: ThinkingLevel[] = [
   'off',
@@ -34,6 +36,7 @@ interface ComposerProps {
   value: string
   models: PiModel[]
   state: PiSessionState | null
+  stats: PiSessionStats | null
   isConnecting: boolean
   isStreaming: boolean
   onChange: (value: string) => void
@@ -47,6 +50,7 @@ export function Composer({
   value,
   models,
   state,
+  stats,
   isConnecting,
   isStreaming,
   onChange,
@@ -126,6 +130,7 @@ export function Composer({
             />
           </HStack>
         }
+        sendActions={<ContextUsageIndicator stats={stats} modelContextWindow={state?.model?.contextWindow} />}
         isStopShown={isStreaming}
         onStop={onStop}
         headerContext={

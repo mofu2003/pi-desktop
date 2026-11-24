@@ -130,6 +130,7 @@ export function usePiSession(): UsePiSessionResult {
   const stateRef = useRef<PiSessionState | null>(null)
   const projectRef = useRef<ProjectInfo | null>(null)
   const generationRef = useRef(0)
+  const statsRequestRef = useRef(0)
 
   const updateState = useCallback((next: PiSessionState | null): void => {
     stateRef.current = next
@@ -150,19 +151,27 @@ export function usePiSession(): UsePiSessionResult {
     }
   }, [])
 
+  const refreshStats = useCallback(async (generation: number): Promise<void> => {
+    const request = ++statsRequestRef.current
+    const result = await window.piDesktop.command<PiSessionStats>({
+      type: 'get_session_stats'
+    }).catch(() => null)
+    if (generation === generationRef.current && request === statsRequestRef.current) {
+      setStats(result?.success ? result.data ?? null : null)
+    }
+  }, [])
+
   const refreshAfterRun = useCallback(async (generation: number): Promise<void> => {
-    const [stateResult, messagesResult, statsResult, sessionsResult] =
+    const [stateResult, messagesResult, sessionsResult] =
       await Promise.all([
         window.piDesktop.command<PiSessionState>({ type: 'get_state' }),
         window.piDesktop.command<{ messages: AgentMessage[] }>({
           type: 'get_messages'
         }),
-        window.piDesktop.command<PiSessionStats>({
-          type: 'get_session_stats'
-        }),
         projectRef.current
           ? window.piDesktop.listSessions(projectRef.current.path)
-          : Promise.resolve([])
+          : Promise.resolve([]),
+        refreshStats(generation)
       ])
 
     if (generation !== generationRef.current) return
@@ -171,14 +180,13 @@ export function usePiSession(): UsePiSessionResult {
       setMessages(messagesResult.data.messages)
       setToolExecutions(toolResultMap(messagesResult.data.messages))
     }
-    if (statsResult.success && statsResult.data) setStats(statsResult.data)
     if (stateResult.success && stateResult.data) {
       setActiveSessionPath(stateResult.data.sessionFile)
     }
     setSessions(sessionsResult)
     setOptimisticUser(null)
     setStatus(null)
-  }, [updateState])
+  }, [refreshStats, updateState])
 
   const startSession = useCallback(
     async (
@@ -194,6 +202,7 @@ export function usePiSession(): UsePiSessionResult {
       setStatus(null)
       setOptimisticUser(null)
       updateState(null)
+      setStats(null)
       setMessages([])
       setSessions([])
       setToolExecutions({})
@@ -322,11 +331,13 @@ export function usePiSession(): UsePiSessionResult {
 
   const setModel = useCallback(
     async (provider: string, modelId: string): Promise<void> => {
+      const generation = generationRef.current
       const response = await window.piDesktop.command<PiModel>({
         type: 'set_model',
         provider,
         modelId
       })
+      if (generation !== generationRef.current) return
       if (!response.success) {
         setError(response.error || '无法切换模型。')
         return
@@ -338,8 +349,10 @@ export function usePiSession(): UsePiSessionResult {
             : null
         )
       }
+      setStats(null)
+      await refreshStats(generation)
     },
-    [updateState]
+    [refreshStats, updateState]
   )
 
   const setThinkingLevel = useCallback(
@@ -409,6 +422,7 @@ export function usePiSession(): UsePiSessionResult {
           if (event.message.role === 'user') setOptimisticUser(null)
           break
         case 'turn_end':
+          void refreshStats(generation)
           for (const result of event.toolResults) {
             setMessages((current) => upsertMessage(current, result))
             setToolExecutions((current) => ({
@@ -483,6 +497,7 @@ export function usePiSession(): UsePiSessionResult {
           setStatus('正在压缩上下文…')
           break
         case 'compaction_end':
+          void refreshStats(generation)
           setStatus(null)
           if (event.errorMessage) setError(event.errorMessage)
           break
@@ -572,7 +587,7 @@ export function usePiSession(): UsePiSessionResult {
     })
 
     return unsubscribe
-  }, [refreshAfterRun])
+  }, [refreshAfterRun, refreshStats])
 
   return {
     project,
