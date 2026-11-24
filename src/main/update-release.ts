@@ -1,12 +1,9 @@
+import type { UpdateStatus } from '../shared/types'
+
 const GITHUB_REPOSITORY = 'mofu2003/pi-desktop'
 export const RELEASES_URL = `https://github.com/${GITHUB_REPOSITORY}/releases`
 export const LATEST_RELEASE_API =
   `https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest`
-
-type UpdateResult =
-  | { status: 'current' }
-  | { status: 'unavailable'; version: string }
-  | { status: 'available'; version: string; downloadUrl: string }
 
 function versionParts(version: string): number[] {
   if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(version)) {
@@ -21,7 +18,7 @@ export function resolveUpdate(
   payload: unknown,
   currentVersion: string,
   architecture: string
-): UpdateResult {
+): UpdateStatus {
   if (!payload || typeof payload !== 'object') throw new Error('Invalid release')
   const { tag_name: tag, assets, draft, prerelease } = payload as Record<string, unknown>
   if (

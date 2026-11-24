@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type {
+  AvailableUpdate,
   PiCommand,
   PiDesktopApi,
   PiEvent,
@@ -22,6 +23,21 @@ const api: PiDesktopApi = {
     const handler = (): void => listener()
     ipcRenderer.on('menu:new-session', handler)
     return () => ipcRenderer.removeListener('menu:new-session', handler)
+  },
+  getUpdate: () => ipcRenderer.invoke('update:state'),
+  openUpdate: () => ipcRenderer.invoke('update:open'),
+  onUpdateAvailable: (listener: (update: AvailableUpdate) => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      payload: AvailableUpdate
+    ): void => listener(payload)
+    ipcRenderer.on('update:available', handler)
+    return () => ipcRenderer.removeListener('update:available', handler)
+  },
+  onMenuToggleSidebar: (listener: () => void) => {
+    const handler = (): void => listener()
+    ipcRenderer.on('menu:toggle-sidebar', handler)
+    return () => ipcRenderer.removeListener('menu:toggle-sidebar', handler)
   },
   platform: process.platform
 }

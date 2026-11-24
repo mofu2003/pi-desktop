@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { AppShell } from '@astryxdesign/core/AppShell'
 import { Banner } from '@astryxdesign/core/Banner'
 import {
@@ -8,6 +8,8 @@ import {
   ChatMessageList
 } from '@astryxdesign/core/Chat'
 import { Layout, LayoutContent } from '@astryxdesign/core/Layout'
+import { useResizable } from '@astryxdesign/core/Resizable'
+import { VStack } from '@astryxdesign/core/Stack'
 import { Text } from '@astryxdesign/core/Text'
 import { ChatEmptyState } from './components/ChatEmptyState'
 import { Composer } from './components/Composer'
@@ -17,25 +19,28 @@ import { MessageView } from './components/MessageView'
 import { Sidebar } from './components/Sidebar'
 import { TopBar } from './components/TopBar'
 import { usePiSession } from './hooks/usePiSession'
+import type { ProjectInfo } from '../../shared/types'
+import { useUpdate } from './hooks/useUpdate'
 import { contentToText } from './lib/pi'
 
 export default function App(): React.JSX.Element {
   const pi = usePiSession()
+  const update = useUpdate()
   const [draft, setDraft] = useState('')
   const [isChoosingProject, setIsChoosingProject] = useState(false)
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [isShowingHome, setIsShowingHome] = useState(true)
+  const sidebarResize = useResizable({
+    defaultSize: 248,
+    minSize: 196,
+    maxSize: 400,
+    autoSaveId: 'pi-desktop:session-sidebar'
+  })
 
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent): void => {
-      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'b') {
-        return
-      }
-      event.preventDefault()
+    return window.piDesktop.onMenuToggleSidebar(() => {
       setIsSidebarCollapsed((collapsed) => !collapsed)
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    })
   }, [])
 
   const title = useMemo(() => {
@@ -69,11 +74,11 @@ export default function App(): React.JSX.Element {
     return -1
   }, [pi.messages])
 
-  const handleChooseProject = async (): Promise<void> => {
-    if (isChoosingProject) return
+  const handleChooseProject = async (): Promise<boolean> => {
+    if (isChoosingProject) return false
     setIsChoosingProject(true)
     try {
-      await pi.chooseProject()
+      return await pi.chooseProject()
     } finally {
       setIsChoosingProject(false)
     }
@@ -81,13 +86,17 @@ export default function App(): React.JSX.Element {
 
   const handleNewSession = async (): Promise<void> => {
     setDraft('')
-    await pi.newSession()
+    if (pi.project) {
+      await pi.newSession()
+    } else if (!(await handleChooseProject())) {
+      return
+    }
     setIsShowingHome(false)
   }
 
-  const handleOpenSession = async (path: string): Promise<void> => {
+  const handleOpenSession = async (path: string, sourceProject?: ProjectInfo): Promise<void> => {
     setDraft('')
-    await pi.openSession(path)
+    await pi.openSession(path, sourceProject)
     setIsShowingHome(false)
   }
 
@@ -102,44 +111,39 @@ export default function App(): React.JSX.Element {
   const hasConversation = pi.messages.length > 0 || Boolean(pi.optimisticUser)
 
   return (
-    <>
+    <VStack
+      className="workspace-shell"
+      height="100%"
+      data-native-sidebar={window.piDesktop.platform === 'darwin'}
+      style={{
+        '--pi-session-sidebar-width': `${isSidebarCollapsed ? 0 : sidebarResize.size}px`
+      } as CSSProperties}
+    >
       <AppShell
         height="fill"
         contentPadding={0}
         variant="surface"
-        banner={
-          pi.error ? (
-            <Banner
-              status="error"
-              title="Pi 遇到问题"
-              description={pi.error}
-              container="section"
-              isDismissable
-              onDismiss={pi.dismissError}
-              dismissLabel="关闭错误提示"
-            />
-          ) : pi.notification ? (
-            <Banner
-              status={pi.notification.status}
-              title="Pi"
-              description={pi.notification.message}
-              container="section"
-              isDismissable
-              onDismiss={pi.dismissNotification}
-              dismissLabel="关闭通知"
-            />
-          ) : undefined
+        topNav={
+          <TopBar
+            title={isShowingHome ? '主页' : title}
+            isSidebarCollapsed={isSidebarCollapsed}
+            onSidebarCollapsedChange={setIsSidebarCollapsed}
+          />
         }
         sideNav={
           <Sidebar
             isCollapsed={isSidebarCollapsed}
+            resizable={sidebarResize}
+            isChoosingProject={isChoosingProject}
             onGoHome={() => setIsShowingHome(true)}
             project={pi.project}
             sessions={pi.sessions}
             activeSessionPath={pi.activeSessionPath}
+            update={update.update}
             onNewSession={() => void handleNewSession()}
             onChooseProject={() => void handleChooseProject()}
-            onOpenSession={(path) => void handleOpenSession(path)}
+            onOpenSession={(path, sourceProject) => void handleOpenSession(path, sourceProject)}
+            onOpenUpdate={() => void update.openUpdate()}
           />
         }
       >
@@ -147,11 +151,27 @@ export default function App(): React.JSX.Element {
           height="fill"
           contentWidth="100%"
           header={
-            <TopBar
-              title={isShowingHome ? '主页' : title}
-              isSidebarCollapsed={isSidebarCollapsed}
-              onSidebarCollapsedChange={setIsSidebarCollapsed}
-            />
+            pi.error ? (
+              <Banner
+                status="error"
+                title="Pi 遇到问题"
+                description={pi.error}
+                container="section"
+                isDismissable
+                onDismiss={pi.dismissError}
+                dismissLabel="关闭错误提示"
+              />
+            ) : pi.notification ? (
+              <Banner
+                status={pi.notification.status}
+                title="Pi"
+                description={pi.notification.message}
+                container="section"
+                isDismissable
+                onDismiss={pi.dismissNotification}
+                dismissLabel="关闭通知"
+              />
+            ) : undefined
           }
           content={
             <LayoutContent
@@ -178,7 +198,7 @@ export default function App(): React.JSX.Element {
                     <ChatEmptyState projectName={pi.project?.name ?? ''} />
                   )
                 }
-                composer={pi.project ? (
+                composer={pi.project && pi.state ? (
                   <Composer
                     value={draft}
                     models={pi.models}
@@ -237,6 +257,6 @@ export default function App(): React.JSX.Element {
         request={pi.extensionRequest}
         onRespond={pi.respondToExtension}
       />
-    </>
+    </VStack>
   )
 }

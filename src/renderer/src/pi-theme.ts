@@ -8,10 +8,19 @@ export const piTheme = defineTheme({
     '--color-background-body': ['#f7f7f4', '#1b1b1b']
   },
   components: {
+    'app-shell': {
+      'variant:surface': { backgroundColor: 'transparent' }
+    },
+    'app-shell-header': {
+      'variant:surface': {
+        backgroundColor: 'transparent',
+        borderBlockEnd: 'none'
+      }
+    },
     'side-nav': {
       base: {
-        backgroundColor: 'var(--color-background-body)',
-        borderInlineEnd: '1px solid var(--color-border)'
+        backgroundColor: 'transparent',
+        borderInlineEnd: 'none'
       }
     }
   }

@@ -1,7 +1,6 @@
 import { RectangleGroupIcon } from '@heroicons/react/24/outline'
 import { Button } from '@astryxdesign/core/Button'
 import { Icon } from '@astryxdesign/core/Icon'
-import { LayoutHeader } from '@astryxdesign/core/Layout'
 import { HStack } from '@astryxdesign/core/Stack'
 import { Text } from '@astryxdesign/core/Text'
 
@@ -16,30 +15,36 @@ export function TopBar({
   isSidebarCollapsed,
   onSidebarCollapsedChange
 }: TopBarProps): React.JSX.Element {
+  const toggleLabel = isSidebarCollapsed ? '展开侧边栏' : '收起侧边栏'
+
   return (
-    <LayoutHeader height={52} padding={0} hasDivider>
-      <HStack
-        width="100%"
-        height="100%"
-        paddingInline={1}
-        gap={1}
-        vAlign="center"
-        className="window-drag"
-      >
+    <HStack
+      as="header"
+      width="100%"
+      paddingInlineEnd={2}
+      gap={2}
+      vAlign="center"
+      className="window-toolbar window-drag"
+    >
+      <HStack vAlign="center" className="window-toolbar-controls">
         <Button
-          label={isSidebarCollapsed ? '展开侧边栏' : '收起侧边栏'}
+          label={toggleLabel}
           variant="ghost"
           size="sm"
           isIconOnly
-          tooltip={isSidebarCollapsed ? '展开侧边栏' : '收起侧边栏'}
+          tooltip={toggleLabel}
           icon={<Icon icon={RectangleGroupIcon} size="sm" />}
           className="window-no-drag"
+          aria-expanded={!isSidebarCollapsed}
+          aria-controls={isSidebarCollapsed ? undefined : 'session-sidebar'}
           onClick={() => onSidebarCollapsedChange(!isSidebarCollapsed)}
         />
+      </HStack>
+      <HStack paddingBlockStart={4} className="window-toolbar-title">
         <Text type="label" weight="semibold" maxLines={1}>
           {title}
         </Text>
       </HStack>
-    </LayoutHeader>
+    </HStack>
   )
 }

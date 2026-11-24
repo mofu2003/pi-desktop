@@ -274,6 +274,16 @@ export interface StartOptions {
   sessionPath?: string
 }
 
+export interface AvailableUpdate {
+  version: string
+  downloadUrl: string
+}
+
+export type UpdateStatus =
+  | { status: 'current' }
+  | { status: 'unavailable'; version: string }
+  | { status: 'available'; version: string; downloadUrl: string }
+
 export interface BootstrapPayload {
   cwd: string
   piPath: string
@@ -327,5 +337,9 @@ export interface PiDesktopApi {
   stop: () => Promise<void>
   onEvent: (listener: (event: PiEvent) => void) => () => void
   onMenuNewSession: (listener: () => void) => () => void
+  onMenuToggleSidebar: (listener: () => void) => () => void
+  getUpdate: () => Promise<AvailableUpdate | null>
+  openUpdate: () => Promise<boolean>
+  onUpdateAvailable: (listener: (update: AvailableUpdate) => void) => () => void
   platform: NodeJS.Platform
 }

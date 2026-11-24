@@ -70,10 +70,10 @@ interface UsePiSessionResult {
   status: string | null
   extensionRequest: ExtensionRequest | null
   commandStatuses: Record<string, string>
-  chooseProject: () => Promise<void>
+  chooseProject: () => Promise<boolean>
   openProject: (path: string) => Promise<void>
   newSession: () => Promise<void>
-  openSession: (path: string) => Promise<void>
+  openSession: (path: string, sourceProject?: ProjectInfo) => Promise<void>
   send: (text: string) => Promise<boolean>
   stop: () => Promise<void>
   setModel: (provider: string, modelId: string) => Promise<void>
@@ -193,7 +193,9 @@ export function usePiSession(): UsePiSessionResult {
       setError(null)
       setStatus(null)
       setOptimisticUser(null)
+      updateState(null)
       setMessages([])
+      setSessions([])
       setToolExecutions({})
       setActiveSessionPath(sessionPath)
 
@@ -211,9 +213,8 @@ export function usePiSession(): UsePiSessionResult {
         setStats(payload.stats ?? null)
         setCommands(payload.commands)
         setActiveSessionPath(payload.state.sessionFile ?? sessionPath)
-        setSessions(
-          await window.piDesktop.listSessions(selectedProject.path)
-        )
+        const projectSessions = await window.piDesktop.listSessions(selectedProject.path)
+        if (generation === generationRef.current) setSessions(projectSessions)
       } catch (startError) {
         if (generation !== generationRef.current) return
         setError(errorMessage(startError))
@@ -224,10 +225,11 @@ export function usePiSession(): UsePiSessionResult {
     [updateState]
   )
 
-  const chooseProject = useCallback(async (): Promise<void> => {
+  const chooseProject = useCallback(async (): Promise<boolean> => {
     const selected = await window.piDesktop.chooseProject()
-    if (!selected) return
+    if (!selected) return false
     await startSession(selected)
+    return true
   }, [startSession])
 
   const openProject = useCallback(
@@ -243,6 +245,10 @@ export function usePiSession(): UsePiSessionResult {
   const newSession = useCallback(async (): Promise<void> => {
     const currentProject = projectRef.current
     if (!currentProject) return
+    if (!stateRef.current) {
+      await startSession(currentProject)
+      return
+    }
     const generation = generationRef.current
     if (stateRef.current?.isStreaming) {
       await window.piDesktop.command({ type: 'abort' })
@@ -257,12 +263,17 @@ export function usePiSession(): UsePiSessionResult {
     if (!response.data?.cancelled) {
       await refreshAfterRun(generation)
     }
-  }, [refreshAfterRun])
+  }, [refreshAfterRun, startSession])
 
   const openSession = useCallback(
-    async (path: string): Promise<void> => {
+    async (path: string, sourceProject?: ProjectInfo): Promise<void> => {
       const currentProject = projectRef.current
-      if (!currentProject || path === activeSessionPath) return
+      const targetProject = sourceProject ?? currentProject
+      if (!targetProject || path === activeSessionPath) return
+      if (!stateRef.current || targetProject.path !== currentProject?.path) {
+        await startSession(targetProject, path)
+        return
+      }
       const generation = generationRef.current
       if (stateRef.current?.isStreaming) {
         await window.piDesktop.command({ type: 'abort' })
@@ -279,7 +290,7 @@ export function usePiSession(): UsePiSessionResult {
         await refreshAfterRun(generation)
       }
     },
-    [activeSessionPath, refreshAfterRun]
+    [activeSessionPath, refreshAfterRun, startSession]
   )
 
   const send = useCallback(async (text: string): Promise<boolean> => {
@@ -365,8 +376,19 @@ export function usePiSession(): UsePiSessionResult {
 
   useEffect(() => {
     const lastProject = readLastProject()
-    if (lastProject) void startSession(lastProject)
-  }, [startSession])
+    if (!lastProject) return
+    setProject(lastProject)
+    projectRef.current = lastProject
+    const generation = generationRef.current
+    void (async () => {
+      try {
+        const restoredSessions = await window.piDesktop.listSessions(lastProject.path)
+        if (generation === generationRef.current) setSessions(restoredSessions)
+      } catch (sessionError) {
+        if (generation === generationRef.current) setError(errorMessage(sessionError))
+      }
+    })()
+  }, [])
 
   useEffect(() => {
     const unsubscribe = window.piDesktop.onEvent((event: HostEvent) => {

@@ -1,7 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu } from 'electron'
 import { join } from 'node:path'
 import { PiHost, listProjectSessions, projectName } from './pi-host'
-import { checkForUpdates } from './updates'
+import { checkForUpdates, getAvailableUpdate, openAvailableUpdate, startUpdateWatcher, stopUpdateWatcher } from './updates'
 import type { PiCommand, StartOptions } from '../shared/types'
 
 let mainWindow: BrowserWindow | null = null
@@ -31,7 +31,9 @@ function createWindow(): void {
     title: 'Pi',
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 18, y: 17 },
-    backgroundColor: '#ffffff',
+    ...(process.platform === 'darwin'
+      ? { vibrancy: 'sidebar', backgroundColor: '#00000000' }
+      : { backgroundColor: '#ffffff' }),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
@@ -64,7 +66,7 @@ function buildMenu(): void {
         { role: 'about', label: '关于 Pi' },
         {
           label: '检查更新…',
-          click: () => void checkForUpdates(() => mainWindow, true)
+          click: () => void checkForUpdates(() => mainWindow)
         },
         { type: 'separator' },
         {
@@ -97,6 +99,12 @@ function buildMenu(): void {
     {
       label: '视图',
       submenu: [
+        {
+          label: '展开或收起侧边栏',
+          accelerator: 'CmdOrCtrl+B',
+          click: () => send('menu:toggle-sidebar', null)
+        },
+        { type: 'separator' },
         { role: 'reload', label: '重新加载' },
         { role: 'forceReload', label: '强制重新加载' },
         { role: 'toggleDevTools', label: '切换开发者工具' },
@@ -125,9 +133,7 @@ app.whenReady().then(() => {
   app.setName('Pi')
   buildMenu()
   createWindow()
-  if (app.isPackaged) {
-    mainWindow?.once('ready-to-show', () => void checkForUpdates(() => mainWindow))
-  }
+  startUpdateWatcher((update) => send('update:available', update))
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
@@ -139,6 +145,7 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', () => {
+  stopUpdateWatcher()
   void host.stop(false)
 })
 
@@ -159,6 +166,10 @@ ipcMain.handle('project:choose', async () => {
 ipcMain.handle('sessions:list', (_event, cwd: string) => {
   return listProjectSessions(cwd)
 })
+
+ipcMain.handle('update:state', () => getAvailableUpdate())
+
+ipcMain.handle('update:open', () => openAvailableUpdate())
 
 ipcMain.handle('pi:start', async (_event, options: StartOptions) => {
   return host.start(options)
