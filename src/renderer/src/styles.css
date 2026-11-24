@@ -68,7 +68,7 @@ body {
 .window-toolbar::before {
   position: absolute;
   z-index: -1;
-  inset-inline: var(--pi-content-start) 0;
+  inset-inline: calc(var(--pi-content-start) + var(--border-width)) var(--border-width);
   inset-block: 100% calc(-1 * var(--spacing-6));
   background: linear-gradient(to bottom, var(--color-background-surface), transparent);
   content: '';
@@ -230,6 +230,10 @@ body {
 
 .sidebar-project-sessions {
   --pi-sidebar-label-start: calc(var(--pi-sidebar-row-start) + var(--pi-sidebar-folder-gutter));
+}
+
+.customize-page {
+  margin-inline: auto;
 }
 
 .app-fade-in {

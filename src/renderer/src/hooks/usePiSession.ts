@@ -72,7 +72,7 @@ interface UsePiSessionResult {
   commandStatuses: Record<string, string>
   chooseProject: () => Promise<boolean>
   openProject: (path: string) => Promise<void>
-  newSession: () => Promise<void>
+  newSession: () => Promise<boolean>
   openSession: (path: string, sourceProject?: ProjectInfo) => Promise<void>
   send: (text: string) => Promise<boolean>
   stop: () => Promise<void>
@@ -184,7 +184,7 @@ export function usePiSession(): UsePiSessionResult {
     async (
       selectedProject: ProjectInfo,
       sessionPath?: string
-    ): Promise<void> => {
+    ): Promise<boolean> => {
       const generation = ++generationRef.current
       setProject(selectedProject)
       projectRef.current = selectedProject
@@ -204,7 +204,7 @@ export function usePiSession(): UsePiSessionResult {
           cwd: selectedProject.path,
           sessionPath
         })
-        if (generation !== generationRef.current) return
+        if (generation !== generationRef.current) return false
 
         updateState(payload.state)
         setMessages(payload.messages)
@@ -214,10 +214,12 @@ export function usePiSession(): UsePiSessionResult {
         setCommands(payload.commands)
         setActiveSessionPath(payload.state.sessionFile ?? sessionPath)
         const projectSessions = await window.piDesktop.listSessions(selectedProject.path)
-        if (generation === generationRef.current) setSessions(projectSessions)
+        if (generation !== generationRef.current) return false
+        setSessions(projectSessions)
+        return true
       } catch (startError) {
-        if (generation !== generationRef.current) return
-        setError(errorMessage(startError))
+        if (generation === generationRef.current) setError(errorMessage(startError))
+        return false
       } finally {
         if (generation === generationRef.current) setIsConnecting(false)
       }
@@ -228,8 +230,7 @@ export function usePiSession(): UsePiSessionResult {
   const chooseProject = useCallback(async (): Promise<boolean> => {
     const selected = await window.piDesktop.chooseProject()
     if (!selected) return false
-    await startSession(selected)
-    return true
+    return startSession(selected)
   }, [startSession])
 
   const openProject = useCallback(
@@ -242,13 +243,10 @@ export function usePiSession(): UsePiSessionResult {
     [startSession]
   )
 
-  const newSession = useCallback(async (): Promise<void> => {
+  const newSession = useCallback(async (): Promise<boolean> => {
     const currentProject = projectRef.current
-    if (!currentProject) return
-    if (!stateRef.current) {
-      await startSession(currentProject)
-      return
-    }
+    if (!currentProject) return false
+    if (!stateRef.current) return startSession(currentProject)
     const generation = generationRef.current
     if (stateRef.current?.isStreaming) {
       await window.piDesktop.command({ type: 'abort' })
@@ -258,11 +256,11 @@ export function usePiSession(): UsePiSessionResult {
     })
     if (!response.success) {
       setError(response.error || '无法新建会话。')
-      return
+      return false
     }
-    if (!response.data?.cancelled) {
-      await refreshAfterRun(generation)
-    }
+    if (response.data?.cancelled) return false
+    await refreshAfterRun(generation)
+    return generation === generationRef.current
   }, [refreshAfterRun, startSession])
 
   const openSession = useCallback(
@@ -575,12 +573,6 @@ export function usePiSession(): UsePiSessionResult {
 
     return unsubscribe
   }, [refreshAfterRun])
-
-  useEffect(() => {
-    return window.piDesktop.onMenuNewSession(() => {
-      void newSession()
-    })
-  }, [newSession])
 
   return {
     project,

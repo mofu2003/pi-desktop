@@ -8,6 +8,10 @@ import type {
 } from '../shared/types'
 
 const api: PiDesktopApi = {
+  listCustomization: (cwd) => ipcRenderer.invoke('customization:list', cwd),
+  revealCustomization: (id) => ipcRenderer.invoke('customization:reveal', id),
+  getCustomizationDetail: (id) => ipcRenderer.invoke('customization:detail', id),
+  readCustomizationFile: (id, file) => ipcRenderer.invoke('customization:file', id, file),
   chooseProject: () => ipcRenderer.invoke('project:choose'),
   listSessions: (cwd: string) => ipcRenderer.invoke('sessions:list', cwd),
   start: (options: StartOptions) => ipcRenderer.invoke('pi:start', options),

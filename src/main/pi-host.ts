@@ -13,7 +13,7 @@ import {
   statSync
 } from 'node:fs'
 import { homedir } from 'node:os'
-import { basename, join } from 'node:path'
+import { basename, delimiter, join } from 'node:path'
 import { EventEmitter } from 'node:events'
 import { StringDecoder } from 'node:string_decoder'
 import type {
@@ -87,6 +87,17 @@ function resolvePiBinary(): string {
   }
 
   return 'pi'
+}
+
+function piEnvironment(): NodeJS.ProcessEnv {
+  const paths = [
+    ...(process.env.PATH ?? '').split(delimiter).filter(Boolean),
+    '/opt/homebrew/bin',
+    '/usr/local/bin',
+    join(homedir(), '.local', 'bin'),
+    join(homedir(), '.npm-global', 'bin')
+  ]
+  return { ...process.env, PATH: [...new Set(paths)].join(delimiter) }
 }
 
 function textFromContent(content: unknown): string {
@@ -212,12 +223,14 @@ export class PiHost extends EventEmitter {
 
     const child = spawn(this.binary, args, {
       cwd: options.cwd,
-      env: { ...process.env },
+      env: piEnvironment(),
       stdio: ['pipe', 'pipe', 'pipe']
     })
     this.child = child
     this.stopping = false
 
+    // Failed RPC writes already reject their requests in the write callback.
+    child.stdin.on('error', () => {})
     child.stdout.on('data', (chunk: Buffer) => this.handleStdout(chunk))
     child.stderr.on('data', (chunk: Buffer) => {
       this.stderrBuffer += chunk.toString()
@@ -258,9 +271,8 @@ export class PiHost extends EventEmitter {
           '找不到 Pi 命令行工具。请安装 Pi，并确认 PATH 中可以找到 pi。'
         )
       }
-      throw new Error(
-        `${message}${this.stderrTail() ? `\n${this.stderrTail()}` : ''}`
-      )
+      const stderr = this.stderrTail()
+      throw new Error(stderr && !message.includes(stderr) ? `${message}\n${stderr}` : message)
     }
   }
 

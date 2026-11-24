@@ -1,4 +1,10 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from 'electron'
+import {
+  describeCustomization,
+  listCustomizationResources,
+  readSkillPreview,
+  type LocatedCustomizationResource
+} from './customization'
 import { join } from 'node:path'
 import { PiHost, listProjectSessions, projectName } from './pi-host'
 import { checkForUpdates, getAvailableUpdate, openAvailableUpdate, startUpdateWatcher, stopUpdateWatcher } from './updates'
@@ -6,6 +12,8 @@ import type { PiCommand, StartOptions } from '../shared/types'
 
 let mainWindow: BrowserWindow | null = null
 const host = new PiHost()
+let customizationEntries = new Map<string, LocatedCustomizationResource>()
+let customizationRequest = 0
 
 function send(channel: string, payload: unknown): void {
   if (!mainWindow || mainWindow.isDestroyed()) return
@@ -161,6 +169,34 @@ ipcMain.handle('project:choose', async () => {
   if (result.canceled || result.filePaths.length === 0) return null
   const path = result.filePaths[0]
   return { path, name: projectName(path) }
+})
+
+ipcMain.handle('customization:list', async (_event, cwd?: string) => {
+  const request = ++customizationRequest
+  const entries = await listCustomizationResources(cwd)
+  if (request === customizationRequest) {
+    customizationEntries = new Map(entries.map((entry) => [entry.id, entry]))
+  }
+  return entries.map(({ location: _location, ...resource }) => resource)
+})
+
+ipcMain.handle('customization:reveal', (_event, id: string) => {
+  const entry = customizationEntries.get(id)
+  if (!entry) return false
+  shell.showItemInFolder(entry.location)
+  return true
+})
+
+ipcMain.handle('customization:detail', (_event, id: string) => {
+  const entry = customizationEntries.get(id)
+  if (!entry) throw new Error('找不到此资源，请刷新列表。')
+  return describeCustomization(entry)
+})
+
+ipcMain.handle('customization:file', (_event, id: string, file: string) => {
+  const entry = customizationEntries.get(id)
+  if (!entry) throw new Error('找不到此资源，请刷新列表。')
+  return readSkillPreview(entry, file)
 })
 
 ipcMain.handle('sessions:list', (_event, cwd: string) => {

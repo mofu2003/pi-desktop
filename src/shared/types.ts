@@ -327,7 +327,29 @@ export interface PiResponse<T = unknown> {
   error?: string
 }
 
+export interface CustomizationResource {
+  id: string
+  kind: 'skills' | 'mcp' | 'extensions'
+  scope: 'user' | 'project'
+  name: string
+  description?: string
+}
+
+export interface CustomizationDetail {
+  files: string[]
+  mcp?: {
+    description?: string
+    enabled?: boolean
+    exposure?: string
+    rules: { pattern: string; exposure: string }[]
+  }
+}
+
 export interface PiDesktopApi {
+  listCustomization: (cwd?: string) => Promise<CustomizationResource[]>
+  revealCustomization: (id: string) => Promise<boolean>
+  getCustomizationDetail: (id: string) => Promise<CustomizationDetail>
+  readCustomizationFile: (id: string, file: string) => Promise<string>
   chooseProject: () => Promise<ProjectInfo | null>
   listSessions: (cwd: string) => Promise<SessionSummary[]>
   start: (options: StartOptions) => Promise<BootstrapPayload>

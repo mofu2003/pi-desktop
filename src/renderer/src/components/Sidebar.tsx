@@ -3,6 +3,7 @@ import {
   Cog6ToothIcon,
   FolderIcon,
   FolderOpenIcon,
+  FolderPlusIcon,
   PlusIcon
 } from '@heroicons/react/24/outline'
 import { HomeIcon } from '@heroicons/react/24/solid'
@@ -24,6 +25,8 @@ interface SidebarProps {
   isCollapsed: boolean
   resizable: ResizableRegion
   isChoosingProject: boolean
+  isCustomizing: boolean
+  onCustomize: () => void
   onGoHome: () => void
   project: ProjectInfo | null
   sessions: SessionSummary[]
@@ -104,6 +107,8 @@ export function Sidebar({
   isCollapsed,
   resizable,
   isChoosingProject,
+  isCustomizing,
+  onCustomize,
   onGoHome,
   project,
   sessions,
@@ -184,12 +189,12 @@ export function Sidebar({
       >
         <Button
           label="主页"
-          variant="secondary"
+          variant={isCustomizing ? 'ghost' : 'secondary'}
           size="md"
           isIconOnly
           tooltip="主页"
           icon={<Icon icon={HomeIcon} size="sm" />}
-          aria-current="page"
+          aria-current={isCustomizing ? undefined : 'page'}
           onClick={onGoHome}
         />
         <VStack gap={1} width="100%" hAlign="center">
@@ -232,18 +237,30 @@ export function Sidebar({
                 isLoading={!project && isChoosingProject}
                 onClick={onNewSession}
               />
-              <Button
-                label="自定义"
-                variant="ghost"
-                size="sm"
-                width="100%"
-                className="sidebar-action"
-                icon={<Icon icon={CustomizeIcon} size="sm" />}
-                onClick={() => {
-                  setGroupName('')
-                  setIsGroupDialogOpen(true)
-                }}
-              />
+              <HStack gap={1}>
+                <Button
+                  label="自定义"
+                  variant={isCustomizing ? 'secondary' : 'ghost'}
+                  size="sm"
+                  width="100%"
+                  className="sidebar-action"
+                  aria-current={isCustomizing ? 'page' : undefined}
+                  icon={<Icon icon={CustomizeIcon} size="sm" />}
+                  onClick={onCustomize}
+                />
+                <Button
+                  label="新建分组"
+                  variant="ghost"
+                  size="sm"
+                  isIconOnly
+                  tooltip="新建分组"
+                  icon={<Icon icon={FolderPlusIcon} size="sm" />}
+                  onClick={() => {
+                    setGroupName('')
+                    setIsGroupDialogOpen(true)
+                  }}
+                />
+              </HStack>
             </VStack>
           }
         >

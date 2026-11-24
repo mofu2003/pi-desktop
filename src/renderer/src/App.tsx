@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useEffect, useEffectEvent, useMemo, useState, type CSSProperties } from 'react'
 import { AppShell } from '@astryxdesign/core/AppShell'
 import { Banner } from '@astryxdesign/core/Banner'
 import {
@@ -13,6 +13,7 @@ import { VStack } from '@astryxdesign/core/Stack'
 import { Text } from '@astryxdesign/core/Text'
 import { ChatEmptyState } from './components/ChatEmptyState'
 import { Composer } from './components/Composer'
+import { CustomizeScreen } from './components/CustomizeScreen'
 import { ExtensionDialog } from './components/ExtensionDialog'
 import { HomeScreen } from './components/HomeScreen'
 import { MessageView } from './components/MessageView'
@@ -30,6 +31,7 @@ export default function App(): React.JSX.Element {
   const [isChoosingProject, setIsChoosingProject] = useState(false)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [isShowingHome, setIsShowingHome] = useState(true)
+  const [isCustomizing, setIsCustomizing] = useState(false)
   const sidebarResize = useResizable({
     defaultSize: 248,
     minSize: 196,
@@ -85,18 +87,25 @@ export default function App(): React.JSX.Element {
   }
 
   const handleNewSession = async (): Promise<void> => {
+    const created = pi.project ? await pi.newSession() : await handleChooseProject()
+    if (!created) return
     setDraft('')
-    if (pi.project) {
-      await pi.newSession()
-    } else if (!(await handleChooseProject())) {
-      return
-    }
+    setIsCustomizing(false)
     setIsShowingHome(false)
   }
+
+  const newSessionFromMenu = useEffectEvent(() => {
+    void handleNewSession()
+  })
+
+  useEffect(() => {
+    return window.piDesktop.onMenuNewSession(() => newSessionFromMenu())
+  }, [])
 
   const handleOpenSession = async (path: string, sourceProject?: ProjectInfo): Promise<void> => {
     setDraft('')
     await pi.openSession(path, sourceProject)
+    setIsCustomizing(false)
     setIsShowingHome(false)
   }
 
@@ -125,7 +134,7 @@ export default function App(): React.JSX.Element {
         variant="surface"
         topNav={
           <TopBar
-            title={isShowingHome ? '主页' : title}
+            title={isCustomizing ? '' : isShowingHome ? '主页' : title}
             isSidebarCollapsed={isSidebarCollapsed}
             onSidebarCollapsedChange={setIsSidebarCollapsed}
           />
@@ -135,7 +144,12 @@ export default function App(): React.JSX.Element {
             isCollapsed={isSidebarCollapsed}
             resizable={sidebarResize}
             isChoosingProject={isChoosingProject}
-            onGoHome={() => setIsShowingHome(true)}
+            isCustomizing={isCustomizing}
+            onCustomize={() => setIsCustomizing(true)}
+            onGoHome={() => {
+              setIsCustomizing(false)
+              setIsShowingHome(true)
+            }}
             project={pi.project}
             sessions={pi.sessions}
             activeSessionPath={pi.activeSessionPath}
@@ -178,77 +192,81 @@ export default function App(): React.JSX.Element {
               padding={0}
               isScrollable={false}
               role="main"
-              label="Pi 会话"
+              label={isCustomizing ? '自定义' : 'Pi 会话'}
             >
-              <ChatLayout
-                density="balanced"
-                style={{ height: '100%' }}
-                emptyState={
-                  isShowingHome ? (
-                    <HomeScreen
-                      project={pi.project}
-                      sessions={pi.sessions}
-                      isOpeningProject={isChoosingProject}
-                      onOpenProject={() => void handleChooseProject()}
-                      onSwitchProject={() => void handleChooseProject()}
-                      onNewSession={() => void handleNewSession()}
-                      onOpenSession={(path) => void handleOpenSession(path)}
-                    />
-                  ) : (
-                    <ChatEmptyState projectName={pi.project?.name ?? ''} />
-                  )
-                }
-                composer={pi.project && pi.state ? (
-                  <Composer
-                    value={draft}
-                    models={pi.models}
-                    state={pi.state}
-                    isConnecting={pi.isConnecting}
-                    isStreaming={pi.isStreaming}
-                    onChange={setDraft}
-                    onSubmit={(value) => void handleSubmit(value)}
-                    onStop={() => void pi.stop()}
-                    onSetModel={(provider, modelId) =>
-                      void pi.setModel(provider, modelId)
-                    }
-                    onSetThinkingLevel={(level) =>
-                      void pi.setThinkingLevel(level)
-                    }
-                  />
-                ) : undefined}
-              >
-                {!isShowingHome && hasConversation ? (
-                  <ChatMessageList
-                    gap={6}
-                    align="top"
-                    density="balanced"
-                    isStreaming={pi.isStreaming}
-                    className="chat-message-column"
-                  >
-                    {pi.messages.map((message) => (
-                      <MessageView
-                        key={`${message.role}:${message.timestamp}`}
-                        message={message}
-                        executions={pi.toolExecutions}
-                        isStreaming={
-                          pi.isStreaming &&
-                          message.role === 'assistant' &&
-                          message.timestamp === lastAssistantTimestamp
-                        }
+              {isCustomizing ? (
+                <CustomizeScreen project={pi.project} onBack={() => setIsCustomizing(false)} />
+              ) : (
+                <ChatLayout
+                  density="balanced"
+                  style={{ height: '100%' }}
+                  emptyState={
+                    isShowingHome ? (
+                      <HomeScreen
+                        project={pi.project}
+                        sessions={pi.sessions}
+                        isOpeningProject={isChoosingProject}
+                        onOpenProject={() => void handleChooseProject()}
+                        onSwitchProject={() => void handleChooseProject()}
+                        onNewSession={() => void handleNewSession()}
+                        onOpenSession={(path) => void handleOpenSession(path)}
                       />
-                    ))}
-                    {pi.optimisticUser && (
-                      <ChatMessage sender="user">
-                        <ChatMessageBubble width="fit-content">
-                          <Text type="body" style={{ whiteSpace: 'pre-wrap' }}>
-                            {pi.optimisticUser}
-                          </Text>
-                        </ChatMessageBubble>
-                      </ChatMessage>
-                    )}
-                  </ChatMessageList>
-                ) : undefined}
-              </ChatLayout>
+                    ) : (
+                      <ChatEmptyState projectName={pi.project?.name ?? ''} />
+                    )
+                  }
+                  composer={pi.project && pi.state ? (
+                    <Composer
+                      value={draft}
+                      models={pi.models}
+                      state={pi.state}
+                      isConnecting={pi.isConnecting}
+                      isStreaming={pi.isStreaming}
+                      onChange={setDraft}
+                      onSubmit={(value) => void handleSubmit(value)}
+                      onStop={() => void pi.stop()}
+                      onSetModel={(provider, modelId) =>
+                        void pi.setModel(provider, modelId)
+                      }
+                      onSetThinkingLevel={(level) =>
+                        void pi.setThinkingLevel(level)
+                      }
+                    />
+                  ) : undefined}
+                >
+                  {!isShowingHome && hasConversation ? (
+                    <ChatMessageList
+                      gap={6}
+                      align="top"
+                      density="balanced"
+                      isStreaming={pi.isStreaming}
+                      className="chat-message-column"
+                    >
+                      {pi.messages.map((message) => (
+                        <MessageView
+                          key={`${message.role}:${message.timestamp}`}
+                          message={message}
+                          executions={pi.toolExecutions}
+                          isStreaming={
+                            pi.isStreaming &&
+                            message.role === 'assistant' &&
+                            message.timestamp === lastAssistantTimestamp
+                          }
+                        />
+                      ))}
+                      {pi.optimisticUser && (
+                        <ChatMessage sender="user">
+                          <ChatMessageBubble width="fit-content">
+                            <Text type="body" style={{ whiteSpace: 'pre-wrap' }}>
+                              {pi.optimisticUser}
+                            </Text>
+                          </ChatMessageBubble>
+                        </ChatMessage>
+                      )}
+                    </ChatMessageList>
+                  ) : undefined}
+                </ChatLayout>
+              )}
             </LayoutContent>
           }
         />
