@@ -31,7 +31,7 @@ function createWindow(): void {
     title: 'Pi',
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 18, y: 17 },
-    backgroundColor: '#f7f7f4',
+    backgroundColor: '#ffffff',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,

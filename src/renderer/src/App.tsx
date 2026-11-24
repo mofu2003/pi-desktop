@@ -12,18 +12,19 @@ import { Text } from '@astryxdesign/core/Text'
 import { ChatEmptyState } from './components/ChatEmptyState'
 import { Composer } from './components/Composer'
 import { ExtensionDialog } from './components/ExtensionDialog'
+import { HomeScreen } from './components/HomeScreen'
 import { MessageView } from './components/MessageView'
 import { Sidebar } from './components/Sidebar'
 import { TopBar } from './components/TopBar'
-import { WelcomeScreen } from './components/WelcomeScreen'
 import { usePiSession } from './hooks/usePiSession'
-import { contentToText, contextPercent } from './lib/pi'
+import { contentToText } from './lib/pi'
 
 export default function App(): React.JSX.Element {
   const pi = usePiSession()
   const [draft, setDraft] = useState('')
   const [isChoosingProject, setIsChoosingProject] = useState(false)
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true)
+  const [isShowingHome, setIsShowingHome] = useState(true)
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent): void => {
@@ -81,37 +82,23 @@ export default function App(): React.JSX.Element {
   const handleNewSession = async (): Promise<void> => {
     setDraft('')
     await pi.newSession()
+    setIsShowingHome(false)
   }
 
   const handleOpenSession = async (path: string): Promise<void> => {
     setDraft('')
     await pi.openSession(path)
+    setIsShowingHome(false)
   }
 
   const handleSubmit = async (value: string): Promise<void> => {
     const submitted = value
     setDraft('')
+    setIsShowingHome(false)
     const accepted = await pi.send(submitted)
     if (!accepted) setDraft(submitted)
   }
 
-  if (!pi.project) {
-    return (
-      <>
-        <WelcomeScreen
-          onOpenProject={() => void handleChooseProject()}
-          isOpening={isChoosingProject}
-        />
-        <ExtensionDialog
-          request={pi.extensionRequest}
-          onRespond={pi.respondToExtension}
-        />
-      </>
-    )
-  }
-
-  const contextUsage = contextPercent(pi.stats)
-  const commandStatus = Object.values(pi.commandStatuses)[0]
   const hasConversation = pi.messages.length > 0 || Boolean(pi.optimisticUser)
 
   return (
@@ -145,19 +132,14 @@ export default function App(): React.JSX.Element {
         }
         sideNav={
           <Sidebar
+            isCollapsed={isSidebarCollapsed}
+            onGoHome={() => setIsShowingHome(true)}
             project={pi.project}
             sessions={pi.sessions}
             activeSessionPath={pi.activeSessionPath}
-            state={pi.state}
-            stats={pi.stats}
-            isConnecting={pi.isConnecting}
-            isStreaming={pi.isStreaming}
-            commandStatus={commandStatus}
-            isCollapsed={isSidebarCollapsed}
-            onCollapsedChange={setIsSidebarCollapsed}
             onNewSession={() => void handleNewSession()}
-            onOpenSession={(path) => void handleOpenSession(path)}
             onChooseProject={() => void handleChooseProject()}
+            onOpenSession={(path) => void handleOpenSession(path)}
           />
         }
       >
@@ -166,13 +148,9 @@ export default function App(): React.JSX.Element {
           contentWidth="100%"
           header={
             <TopBar
-              title={title}
-              status={pi.status}
-              isConnecting={pi.isConnecting}
-              isStreaming={pi.isStreaming}
-              hasError={Boolean(pi.error)}
-              contextPercent={contextUsage}
+              title={isShowingHome ? '主页' : title}
               isSidebarCollapsed={isSidebarCollapsed}
+              onSidebarCollapsedChange={setIsSidebarCollapsed}
             />
           }
           content={
@@ -186,9 +164,21 @@ export default function App(): React.JSX.Element {
                 density="balanced"
                 style={{ height: '100%' }}
                 emptyState={
-                  <ChatEmptyState projectName={pi.project.name} />
+                  isShowingHome ? (
+                    <HomeScreen
+                      project={pi.project}
+                      sessions={pi.sessions}
+                      isOpeningProject={isChoosingProject}
+                      onOpenProject={() => void handleChooseProject()}
+                      onSwitchProject={() => void handleChooseProject()}
+                      onNewSession={() => void handleNewSession()}
+                      onOpenSession={(path) => void handleOpenSession(path)}
+                    />
+                  ) : (
+                    <ChatEmptyState projectName={pi.project?.name ?? ''} />
+                  )
                 }
-                composer={
+                composer={pi.project ? (
                   <Composer
                     value={draft}
                     models={pi.models}
@@ -205,9 +195,9 @@ export default function App(): React.JSX.Element {
                       void pi.setThinkingLevel(level)
                     }
                   />
-                }
+                ) : undefined}
               >
-                {hasConversation ? (
+                {!isShowingHome && hasConversation ? (
                   <ChatMessageList
                     gap={6}
                     align="top"

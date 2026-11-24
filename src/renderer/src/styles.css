@@ -62,6 +62,29 @@ body {
   min-height: 0;
 }
 
+.product-navigation {
+  flex: 0 0 auto;
+}
+
+.icon-rail {
+  flex: 0 0 48px;
+  border-inline-end: 1px solid var(--color-border);
+  background: var(--color-background-body);
+}
+
+.home-screen {
+  background: var(--color-background-body);
+}
+
+.home-recent-sessions {
+  padding-top: var(--spacing-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.sidebar-rail {
+  background: var(--color-background-body);
+}
+
 .app-fade-in {
   animation: app-fade-in var(--motion-duration-fast) var(--motion-easing-standard)
     both;
