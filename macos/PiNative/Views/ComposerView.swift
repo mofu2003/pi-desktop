@@ -321,7 +321,7 @@ struct ComposerView: View {
                 return .handled
             }
             .onKeyPress(keys: [.return]) { press in
-                guard !Self.isComposingText else { return .ignored }
+                guard !Self.isComposingText, !isModelOpen else { return .ignored }
                 if press.modifiers.contains(.shift) {
                     if let editor = NSApp.keyWindow?.firstResponder as? NSTextView {
                         editor.insertNewlineIgnoringFieldEditor(nil)
@@ -386,17 +386,21 @@ struct ComposerView: View {
                 Button {
                     isModelOpen.toggle()
                 } label: {
-                    HStack(spacing: 5) {
+                    HStack(spacing: 10) {
                         Text(sessionStore.state?.model?.displayName ?? "选择模型")
                             .font(.body)
-                        if let level = sessionStore.state?.thinkingLevel, level != .off {
-                            Text(level.displayName)
-                                .font(.callout)
-                                .foregroundStyle(.secondary)
-                        }
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .frame(minWidth: 0, idealWidth: 210, maxWidth: 210, alignment: .trailing)
+                        Text((sessionStore.state?.thinkingLevel ?? .off).displayName)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .frame(width: 32, alignment: .leading)
                         Image(systemName: "chevron.down")
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                            .frame(width: 10)
                     }
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
