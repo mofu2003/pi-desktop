@@ -1,13 +1,9 @@
-export function PiMark({ size = 18 }: { size?: number }): React.JSX.Element {
+import type { SVGProps } from 'react'
+import { Icon } from '@astryxdesign/core/Icon'
+
+function PiGlyph(props: SVGProps<SVGSVGElement>): React.JSX.Element {
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 800 800"
-      fill="none"
-      aria-hidden="true"
-      className="pi-logo-mark"
-    >
+    <svg viewBox="0 0 800 800" fill="none" aria-hidden="true" {...props}>
       <path
         fill="#F09082"
         d="M165.29 165.29H517.36V400H400V282.65H165.29Z"
@@ -22,4 +18,12 @@ export function PiMark({ size = 18 }: { size?: number }): React.JSX.Element {
       />
     </svg>
   )
+}
+
+export function PiMark({
+  size = 'md'
+}: {
+  size?: 'xsm' | 'sm' | 'md' | 'lg'
+}): React.JSX.Element {
+  return <Icon icon={PiGlyph} size={size} />
 }

@@ -1,0 +1,8 @@
+# Pi 桌面运行时调研
+
+- **NativePi** 把固定版本的 Pi 包随 Electron 分发，由独立子进程运行 Pi 自己的 RPC，再通过 stdin/stdout 与 Electron 主进程通信。它复用 Pi 的终端配置和会话。Electron 方案依赖 `ELECTRON_RUN_AS_NODE` 和对应的运行时开关。 [NativePi 架构](https://github.com/nonlooped/nativepi#architecture) · [NativePi 的 Pi 入口](https://github.com/nonlooped/nativepi/blob/main/apps/desktop/src/main/pi/host/entry.ts) · [Electron 的运行时开关](https://www.electronjs.org/docs/latest/tutorial/fuses#runasnode)
+- **Picot** 在应用包中携带固定版本的 Bun 编译 Pi，按项目启动 `pi --mode rpc`，读取本机 `~/.pi/agent` 下的配置、认证与会话。其 HTTP/WebSocket 服务用于连接 WebView 和其他客户端。当前 Pi Desktop 已有 Electron IPC，可直接使用 JSONL RPC。 [Picot 架构](https://github.com/DandiWong/picot#how-it-works)
+- **waitkeeper/pi-desktop** 在安装包中携带精确固定版本的编译后 Pi npm 包，让用户无需单独安装 Node.js、包管理器或 Pi。它在第三方声明中保留 Pi 的 MIT 许可。 [运行时依赖](https://github.com/waitkeeper/pi-desktop#pi-runtime-dependency) · [第三方声明](https://github.com/waitkeeper/pi-desktop/blob/main/THIRD_PARTY_NOTICES.md)
+- **上游 Pi** 提供长期运行的 JSONL RPC 子进程模式，`get_state` 可用于确认启动。Pi 1.6.0 的 npm CLI 入口是 `dist/bundle/cli.js`，需要 Node.js ≥22.19.0。其发行版也提供由 Bun 编译的 macOS arm64 独立运行时和配套资源。Pi 的 MIT 许可要求分发时保留版权与许可声明。 [RPC 文档](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/rpc.md) · [v1.6.0 包清单](https://github.com/earendil-works/pi/blob/v1.6.0/packages/coding-agent/package.json) · [v1.6.0 发行版](https://github.com/earendil-works/pi/releases/tag/v1.6.0) · [许可](https://github.com/earendil-works/pi/blob/v1.6.0/LICENSE)
+
+本项目采用上游 v1.6.0 的 `pi-darwin-arm64.tar.gz` 作为 macOS 安装包内置运行时。构建时固定版本及 SHA-256，启动时由现有 IPC/RPC 流程拉起本地进程。已有终端 Pi 与桌面内置 Pi 共享用户配置和会话目录。无需安装或覆盖全局命令，也无需修改 Electron 的运行时开关。 [上游发布元数据](https://api.github.com/repos/earendil-works/pi/releases/tags/v1.6.0)

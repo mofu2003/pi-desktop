@@ -40,13 +40,17 @@ export function resolveUpdate(
   }
 
   const assetName = `Pi-${version}-${architecture}.dmg`
-  if (!assets.some((asset) => asset?.name === assetName && asset?.state === 'uploaded')) {
+  const asset = assets.find((item) => item?.name === assetName && item?.state === 'uploaded')
+  if (!asset) {
     return { status: 'unavailable', version }
   }
 
+  const digest = typeof asset.digest === 'string' ? /^sha256:([a-f0-9]{64})$/i.exec(asset.digest)?.[1] : undefined
   return {
     status: 'available',
     version,
-    downloadUrl: `${RELEASES_URL}/download/${tag}/${encodeURIComponent(assetName)}`
+    downloadUrl: `${RELEASES_URL}/download/${tag}/${encodeURIComponent(assetName)}`,
+    ...(digest ? { sha256: digest.toLowerCase() } : {}),
+    ...(Number.isSafeInteger(asset.size) && asset.size > 0 ? { size: asset.size } : {})
   }
 }

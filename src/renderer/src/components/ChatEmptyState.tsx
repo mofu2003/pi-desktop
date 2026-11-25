@@ -1,12 +1,19 @@
-import { Card } from '@astryxdesign/core/Card'
-import { VStack } from '@astryxdesign/core/Stack'
+import { Button } from '@astryxdesign/core/Button'
+import { HStack, VStack } from '@astryxdesign/core/Stack'
+import { StatusDot } from '@astryxdesign/core/StatusDot'
 import { Text } from '@astryxdesign/core/Text'
 import { PiMark } from './PiMark'
 
 export function ChatEmptyState({
-  projectName
+  projectName,
+  isConnecting = false,
+  isRuntimeConnected = true,
+  onReconnect
 }: {
-  projectName: string
+  projectName?: string
+  isConnecting?: boolean
+  isRuntimeConnected?: boolean
+  onReconnect?: () => void
 }): React.JSX.Element {
   return (
     <VStack
@@ -15,18 +22,30 @@ export function ChatEmptyState({
       gap={3}
       height="100%"
       padding={8}
-      className="app-fade-in"
     >
-      <Card variant="muted" padding={3}>
-        <PiMark size={28} />
-      </Card>
-      <VStack hAlign="center" gap={1}>
+      <PiMark size="lg" />
+      <VStack hAlign="center" gap={1.5}>
         <Text type="display-3" as="h1" justify="center">
-          想用 Pi 做什么？
+          {projectName ? `想用 Pi 在 ${projectName} 里做什么？` : '想用 Pi 做什么？'}
         </Text>
-        <Text type="large" color="secondary" justify="center">
-          当前项目：{projectName}
+        <Text type="supporting" color="secondary" justify="center">
+          输入 / 浏览命令 · ! 运行 Shell · ⌘N 新建会话
         </Text>
+        {!isRuntimeConnected && (
+          <HStack vAlign="center" gap={2}>
+            <StatusDot
+              variant={isConnecting ? 'accent' : 'error'}
+              isPulsing={isConnecting}
+              label={isConnecting ? '正在连接 Pi…' : 'Pi 未连接'}
+            />
+            <Text type="supporting" color="secondary" role="status">
+              {isConnecting ? '正在连接 Pi…' : 'Pi 未连接'}
+            </Text>
+            {!isConnecting && onReconnect && (
+              <Button label="重新连接" variant="ghost" size="sm" onClick={onReconnect} />
+            )}
+          </HStack>
+        )}
       </VStack>
     </VStack>
   )

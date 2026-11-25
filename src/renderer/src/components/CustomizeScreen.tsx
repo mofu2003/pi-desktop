@@ -17,6 +17,7 @@ import { Tab, TabList } from '@astryxdesign/core/TabList'
 import { Text } from '@astryxdesign/core/Text'
 import { TextInput } from '@astryxdesign/core/TextInput'
 import type { CustomizationResource, ProjectInfo } from '../../../shared/types'
+import { LAYOUT_WIDTHS } from '../lib/layout'
 import { CustomizationDetailScreen } from './CustomizationDetailScreen'
 
 const tabs = [
@@ -104,8 +105,8 @@ export function CustomizeScreen({
   }
 
   return (
-    <VStack ref={list} height="100%" isScrollable>
-      <VStack width="100%" maxWidth={960} padding={6} gap={5} className="customize-page">
+    <VStack ref={list} height="100%" hAlign="center" isScrollable>
+      <VStack width="100%" maxWidth={LAYOUT_WIDTHS.customizeColumn} padding={6} gap={5}>
         <HStack hAlign="between" vAlign="center" gap={2}>
           <VStack gap={1}>
             <Heading level={1} weight="semibold">自定义</Heading>

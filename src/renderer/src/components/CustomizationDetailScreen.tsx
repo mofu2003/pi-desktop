@@ -13,6 +13,7 @@ import { HStack, VStack } from '@astryxdesign/core/Stack'
 import { Tab, TabList } from '@astryxdesign/core/TabList'
 import { Text } from '@astryxdesign/core/Text'
 import type { CustomizationDetail, CustomizationResource } from '../../../shared/types'
+import { LAYOUT_WIDTHS } from '../lib/layout'
 
 const exposureLabels: Record<string, string> = {
   codemode: '代码模式',
@@ -69,8 +70,8 @@ export function CustomizationDetailScreen({
   }, [tab, filename, resource.id])
 
   return (
-    <VStack height="100%" isScrollable>
-      <VStack width="100%" maxWidth={960} padding={6} gap={5} className="customize-page">
+    <VStack height="100%" hAlign="center" isScrollable>
+      <VStack width="100%" maxWidth={LAYOUT_WIDTHS.customizeColumn} padding={6} gap={5}>
         <HStack hAlign="start">
           <Button
             label="返回资源列表"

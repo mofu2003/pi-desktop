@@ -2,6 +2,14 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { resolveUpdate, RELEASES_URL } from '../src/main/update-release.ts'
 
+test('reads and validates the GitHub digest for in-app installation', () => {
+  const digest = 'a'.repeat(64)
+  const asset = { ...release.assets[0], digest: 'sha256:' + digest, size: 173584019 }
+  assert.equal(resolveUpdate({ ...release, assets: [asset] }, '0.1.9', 'arm64').sha256, digest)
+  assert.equal(resolveUpdate({ ...release, assets: [{ ...asset, digest: 'bad' }] }, '0.1.9', 'arm64').sha256,
+    undefined)
+})
+
 const release = {
   tag_name: 'v0.1.12',
   draft: false,

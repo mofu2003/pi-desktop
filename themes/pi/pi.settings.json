@@ -1,0 +1,29 @@
+{
+  "name": "pi",
+  "like": "neutral",
+  "mode": "both",
+  "settings": [
+    {
+      "thing": "--font-family-code",
+      "value": "'SF Mono', ui-monospace, Menlo, Monaco, 'PingFang SC', monospace",
+      "source": "token"
+    },
+    {
+      "thing": "--font-family-body",
+      "value": "Figtree, -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', sans-serif",
+      "source": "token"
+    },
+    {
+      "thing": "--font-family-heading",
+      "value": "Figtree, -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', sans-serif",
+      "source": "token"
+    },
+    {
+      "thing": "accent",
+      "value": "#0066D6",
+      "source": "dial"
+    }
+  ],
+  "lifted": [],
+  "palette": "a8fbf0716e0492ac1264dcc65344aff8ee63ffcddbaa8f8028331edf820043cd"
+}

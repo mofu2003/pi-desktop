@@ -5,6 +5,13 @@ export type ThinkingLevel =
   | 'medium'
   | 'high'
   | 'xhigh'
+  | 'max'
+
+export interface ImageContent {
+  type: 'image'
+  data: string
+  mimeType: string
+}
 
 export type ContentBlock =
   | { type: 'text'; text: string }
@@ -15,7 +22,7 @@ export type ContentBlock =
       name: string
       arguments: Record<string, unknown>
     }
-  | { type: 'image'; data: string; mimeType: string }
+  | ImageContent
 
 export interface AgentUsage {
   input: number
@@ -38,6 +45,12 @@ export interface UserMessage {
   timestamp: number
 }
 
+export interface SystemMessage {
+  role: 'system'
+  content: string | ContentBlock[]
+  timestamp: number
+}
+
 export interface AssistantMessage {
   role: 'assistant'
   content: ContentBlock[]
@@ -46,9 +59,17 @@ export interface AssistantMessage {
   model?: string
   responseModel?: string
   usage?: AgentUsage
-  stopReason?: 'stop' | 'length' | 'toolUse' | 'error' | 'aborted'
+  stopReason?:
+    | 'pending'
+    | 'stop'
+    | 'length'
+    | 'toolUse'
+    | 'error'
+    | 'aborted'
+    | 'deferred'
   errorMessage?: string
   timestamp: number
+  durationMs?: number
 }
 
 export interface ToolResultMessage {
@@ -59,6 +80,7 @@ export interface ToolResultMessage {
   details?: unknown
   isError: boolean
   timestamp: number
+  durationMs?: number
 }
 
 export interface BashExecutionMessage {
@@ -97,6 +119,7 @@ export interface CompactionSummaryMessage {
 }
 
 export type AgentMessage =
+  | SystemMessage
   | UserMessage
   | AssistantMessage
   | ToolResultMessage
@@ -111,6 +134,7 @@ export interface PiModel {
   provider: string
   api?: string
   reasoning?: boolean
+  thinkingLevelMap?: Partial<Record<ThinkingLevel, string | null>>
   contextWindow?: number
   maxTokens?: number
 }
@@ -118,6 +142,7 @@ export interface PiModel {
 export interface PiSessionState {
   model?: PiModel
   thinkingLevel: ThinkingLevel
+  availableThinkingLevels?: ThinkingLevel[]
   isStreaming: boolean
   isCompacting: boolean
   steeringMode: 'all' | 'one-at-a-time'
@@ -174,6 +199,7 @@ export interface ToolExecution {
 export type PiEvent =
   | { type: 'agent_start' }
   | { type: 'agent_end'; messages: AgentMessage[] }
+  | { type: 'agent_settled'; aborted: boolean }
   | { type: 'turn_start' }
   | {
       type: 'turn_end'
@@ -183,10 +209,15 @@ export type PiEvent =
   | { type: 'message_start'; message: AgentMessage }
   | {
       type: 'message_update'
-      message: AgentMessage
+      usage?: AgentUsage
       assistantMessageEvent: {
         type: string
+        contentIndex?: number
         delta?: string
+        content?: string
+        id?: string
+        toolName?: string
+        toolCall?: ContentBlock
         reason?: string
         [key: string]: unknown
       }
@@ -251,10 +282,44 @@ export type PiEvent =
       method: string
       [key: string]: unknown
     }
+  | {
+      type: 'bash_execution_update'
+      id?: string
+      delta: string
+    }
+  | {
+      type: 'session_info_changed'
+      name?: string
+    }
+  | {
+      type: 'thinking_level_changed'
+      level: ThinkingLevel
+    }
+  | {
+      type: 'agent_settled'
+      aborted: boolean
+    }
+
+export interface SshHostInfo {
+  name: string
+  hostName?: string
+  user?: string
+  port?: number
+  source: 'config' | 'custom'
+}
+
+export interface SshTarget {
+  host: string
+  label?: string
+  remoteCwd?: string
+  port?: number
+}
 
 export interface ProjectInfo {
   path: string
   name: string
+  isUnassigned?: true
+  ssh?: SshTarget
 }
 
 export interface SessionSummary {
@@ -269,24 +334,34 @@ export interface SessionSummary {
   modified: string
 }
 
+export interface SessionListOptions {
+  retainPaths?: string[]
+  excludePaths?: string[]
+  includeAll?: boolean
+}
+
 export interface StartOptions {
   cwd: string
   sessionPath?: string
+  ssh?: SshTarget
 }
 
 export interface AvailableUpdate {
   version: string
   downloadUrl: string
+  sha256?: string
+  size?: number
 }
 
 export type UpdateStatus =
   | { status: 'current' }
   | { status: 'unavailable'; version: string }
-  | { status: 'available'; version: string; downloadUrl: string }
+  | ({ status: 'available' } & AvailableUpdate)
 
 export interface BootstrapPayload {
   cwd: string
   piPath: string
+  ssh?: SshTarget
   state: PiSessionState
   messages: AgentMessage[]
   models: PiModel[]
@@ -294,20 +369,56 @@ export interface BootstrapPayload {
   commands: PiCommandInfo[]
 }
 
+export interface ForkableMessage {
+  entryId: string
+  text: string
+}
+
+export interface BashResult {
+  output: string
+  exitCode?: number
+  cancelled: boolean
+  truncated: boolean
+  fullOutputPath?: string
+}
+
 export type PiCommand =
-  | { type: 'prompt'; message: string; streamingBehavior?: 'steer' | 'followUp' }
-  | { type: 'steer'; message: string }
-  | { type: 'follow_up'; message: string }
+  | {
+      type: 'prompt'
+      message: string
+      images?: ImageContent[]
+      streamingBehavior?: 'steer' | 'followUp'
+    }
+  | { type: 'steer'; message: string; images?: ImageContent[] }
+  | { type: 'follow_up'; message: string; images?: ImageContent[] }
   | { type: 'abort' }
+  | { type: 'clear_queue' }
   | { type: 'new_session'; parentSession?: string }
   | { type: 'get_state' }
+  | { type: 'get_available_thinking_levels' }
   | { type: 'get_messages' }
   | { type: 'get_available_models' }
   | { type: 'set_model'; provider: string; modelId: string }
+  | { type: 'cycle_model' }
   | { type: 'set_thinking_level'; level: ThinkingLevel }
+  | { type: 'cycle_thinking_level' }
+  | { type: 'set_steering_mode'; mode: 'all' | 'one-at-a-time' }
+  | { type: 'set_follow_up_mode'; mode: 'all' | 'one-at-a-time' }
+  | { type: 'set_auto_compaction'; enabled: boolean }
+  | { type: 'set_auto_retry'; enabled: boolean }
+  | { type: 'abort_retry' }
+  | { type: 'bash'; command: string; excludeFromContext?: boolean }
+  | { type: 'abort_bash' }
   | { type: 'set_session_name'; name: string }
   | { type: 'get_session_stats' }
+  | { type: 'export_html'; outputPath?: string }
   | { type: 'switch_session'; sessionPath: string }
+  | { type: 'fork'; entryId: string }
+  | { type: 'clone' }
+  | { type: 'get_fork_messages' }
+  | { type: 'get_entries'; since?: string }
+  | { type: 'get_tree' }
+  | { type: 'get_last_assistant_text' }
   | { type: 'compact'; customInstructions?: string }
   | { type: 'get_commands' }
   | {
@@ -350,8 +461,29 @@ export interface PiDesktopApi {
   revealCustomization: (id: string) => Promise<boolean>
   getCustomizationDetail: (id: string) => Promise<CustomizationDetail>
   readCustomizationFile: (id: string, file: string) => Promise<string>
-  chooseProject: () => Promise<ProjectInfo | null>
-  listSessions: (cwd: string) => Promise<SessionSummary[]>
+  chooseProjectFolder: () => Promise<ProjectInfo | null>
+  chooseImages: () => Promise<ImageContent[]>
+  createProject: (name: string, sourceFolder?: string) => Promise<ProjectInfo>
+  getUnassignedWorkspace: () => Promise<ProjectInfo>
+  listSshHosts: () => Promise<SshHostInfo[]>
+  revealProject: (cwd: string) => Promise<void>
+  listSessions: (cwd: string, options?: SessionListOptions) => Promise<SessionSummary[]>
+  moveSession: (cwd: string, path: string, target: string) => Promise<SessionSummary>
+  copySessionMarkdown: (cwd: string, path: string) => Promise<void>
+  shareSession: (cwd: string, path: string) => Promise<void>
+  openSessionPreview: (cwd: string, path: string, title: string) => Promise<void>
+  getSessionPreview: () => Promise<{ title: string; markdown: string } | undefined>
+  takeSessionLink: () => Promise<SessionSummary | undefined>
+  onSessionLink: (listener: () => void) => () => void
+  forkSessionInWorktree: (cwd: string, path: string) => Promise<{ session: SessionSummary; project: ProjectInfo }>
+  deleteSession: (cwd: string, path: string) => Promise<void>
+  renameSessionFile: (cwd: string, path: string, name: string) => Promise<void>
+  trashSession: (cwd: string, path: string) => Promise<void>
+  chooseExportPath: (defaultName: string) => Promise<string | null>
+  revealFile: (path: string) => Promise<void>
+  copyText: (text: string) => Promise<void>
+  setWindowTitle: (title: string) => Promise<void>
+  connect: () => Promise<void>
   start: (options: StartOptions) => Promise<BootstrapPayload>
   command: <T = unknown>(
     command: PiCommand

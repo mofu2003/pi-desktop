@@ -1,6 +1,6 @@
 {
   "name": "pi-desktop",
-  "version": "0.4.0",
+  "version": "0.6.0",
   "private": true,
   "description": "A clean desktop client for Pi Coding Agent",
   "main": "./out/main/index.js",
@@ -15,7 +15,7 @@
     "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test test/*.test.mjs",
     "build": "tsc --noEmit && electron-vite build",
     "preview": "electron-vite preview",
-    "package": "npm run build && electron-builder --mac dmg"
+    "package": "npm run build && node build/package-mac.cjs"
   },
   "dependencies": {
     "@astryxdesign/core": "^0.7.16",
@@ -39,6 +39,14 @@
   "build": {
     "appId": "com.pi.desktop",
     "productName": "Pi",
+    "protocols": [
+      {
+        "name": "Pi 会话链接",
+        "schemes": [
+          "pi-desktop"
+        ]
+      }
+    ],
     "asar": true,
     "directories": {
       "output": "release",

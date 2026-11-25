@@ -2,7 +2,6 @@ import type {
   AgentMessage,
   ContentBlock,
   PiModel,
-  PiSessionStats,
   ToolExecution
 } from '../../../shared/types'
 
@@ -105,13 +104,6 @@ export function modelLabel(model?: PiModel | null): string {
   return model.name || model.id.split('/').at(-1) || model.id
 }
 
-export function contextPercent(
-  stats?: PiSessionStats | null
-): number | undefined {
-  const percent = stats?.contextUsage?.percent
-  return typeof percent === 'number' && Number.isFinite(percent) && percent >= 0 ? percent : undefined
-}
-
 export function messageKey(message: AgentMessage): string {
   return `${message.role}:${message.timestamp}`
 }
@@ -125,6 +117,106 @@ export function upsertMessage(
   if (index === -1) return [...messages, message]
   const next = messages.slice()
   next[index] = message
+  return next
+}
+
+export function applyAssistantMessageUpdate(
+  messages: AgentMessage[],
+  update: Record<string, unknown>
+): AgentMessage[] {
+  let index = -1
+  for (let candidate = messages.length - 1; candidate >= 0; candidate -= 1) {
+    if (messages[candidate]?.role === 'assistant') {
+      index = candidate
+      break
+    }
+  }
+  if (index === -1) return messages
+
+  const message = messages[index]
+  if (message.role !== 'assistant') return messages
+
+  const contentIndex =
+    typeof update.contentIndex === 'number' && update.contentIndex >= 0
+      ? update.contentIndex
+      : 0
+  const type = typeof update.type === 'string' ? update.type : ''
+  const delta = typeof update.delta === 'string' ? update.delta : ''
+  const content = message.content.slice()
+  const current = content[contentIndex]
+  let nextBlock = current
+
+  switch (type) {
+    case 'text_start':
+      nextBlock = { type: 'text', text: '' }
+      break
+    case 'text_delta':
+      nextBlock = {
+        type: 'text',
+        text: `${current?.type === 'text' ? current.text : ''}${delta}`
+      }
+      break
+    case 'text_end':
+      nextBlock = {
+        type: 'text',
+        text: typeof update.content === 'string'
+          ? update.content
+          : current?.type === 'text'
+            ? current.text
+            : ''
+      }
+      break
+    case 'thinking_start':
+      nextBlock = { type: 'thinking', thinking: '' }
+      break
+    case 'thinking_delta':
+      nextBlock = {
+        type: 'thinking',
+        thinking: `${current?.type === 'thinking' ? current.thinking : ''}${delta}`
+      }
+      break
+    case 'thinking_end':
+      nextBlock = {
+        type: 'thinking',
+        thinking: typeof update.content === 'string'
+          ? update.content
+          : current?.type === 'thinking'
+            ? current.thinking
+            : ''
+      }
+      break
+    case 'toolcall_start':
+      nextBlock = {
+        type: 'toolCall',
+        id: typeof update.id === 'string' ? update.id : '',
+        name: typeof update.toolName === 'string' ? update.toolName : '',
+        arguments: {}
+      }
+      break
+    case 'toolcall_end': {
+      const toolCall = update.toolCall
+      if (
+        toolCall &&
+        typeof toolCall === 'object' &&
+        'id' in toolCall &&
+        'name' in toolCall &&
+        'arguments' in toolCall
+      ) {
+        nextBlock = toolCall as ContentBlock
+      }
+      break
+    }
+  }
+
+  if (nextBlock === current) return messages
+
+  while (content.length < contentIndex) {
+    content.push({ type: 'text', text: '' })
+  }
+  content[contentIndex] = nextBlock
+
+  const next = messages.slice()
+  next[index] = { ...message, content }
   return next
 }
 

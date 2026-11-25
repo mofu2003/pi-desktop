@@ -1,0 +1,48 @@
+name: PiNative
+options:
+  bundleIdPrefix: com.pi.desktop
+  deploymentTarget:
+    macOS: "15.0"
+  xcodeVersion: "16.0"
+  defaultConfig: Release
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MACOSX_DEPLOYMENT_TARGET: "15.0"
+    PRODUCT_NAME: Pi
+    MARKETING_VERSION: "0.6.0"
+    CURRENT_PROJECT_VERSION: "1"
+
+targets:
+  PiNative:
+    type: application
+    platform: macOS
+    sources:
+      - path: PiNative
+        excludes:
+          - "**/*.md"
+    resources:
+      - path: ../build/icon.icns
+    settings:
+      base:
+        INFOPLIST_FILE: PiNative/Info.plist
+        CODE_SIGN_ENTITLEMENTS: PiNative/PiNative.entitlements
+        CODE_SIGN_IDENTITY: "-"
+        ENABLE_HARDENED_RUNTIME: false
+        ASSETCATALOG_COMPILER_APPICON_NAME: ""
+        PRODUCT_BUNDLE_IDENTIFIER: com.pi.desktop.native
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks"
+
+  PiNativeTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: PiNativeTests
+    dependencies:
+      - target: PiNative
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: true
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Pi.app/Contents/MacOS/Pi"
+        BUNDLE_LOADER: "$(TEST_HOST)"
