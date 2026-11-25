@@ -183,6 +183,9 @@ struct MainWindowView: View {
                     .frame(width: 0, height: 0)
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            Task { await updateService.refreshOnActivateIfNeeded() }
+        }
         .alert(
             updateService.alertMessage?.title ?? "",
             isPresented: Binding(

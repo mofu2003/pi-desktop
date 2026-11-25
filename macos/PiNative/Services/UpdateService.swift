@@ -28,6 +28,8 @@ final class UpdateService {
     private static let latestReleaseAPI = URL(string: "https://api.github.com/repos/mofu2003/pi-desktop/releases/latest")!
     nonisolated private static let releasesBase = "https://github.com/mofu2003/pi-desktop/releases"
     private var watcherTask: Task<Void, Never>?
+    private var promptedVersion: String?
+    private var lastCheckAt: Date?
 
     var currentVersion: String {
         (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "0.6.0"
@@ -45,17 +47,33 @@ final class UpdateService {
         guard watcherTask == nil else { return }
         watcherTask = Task {
             while !Task.isCancelled {
-                await refreshSilently()
-                try? await Task.sleep(for: .seconds(6 * 3600))
+                await refreshSilently(promptIfNew: true)
+                try? await Task.sleep(for: .seconds(1800))
             }
         }
     }
 
-    func refreshSilently() async {
+    func refreshOnActivateIfNeeded() async {
+        if let lastCheckAt, Date().timeIntervalSince(lastCheckAt) < 300 {
+            return
+        }
+        await refreshSilently(promptIfNew: true)
+    }
+
+    func refreshSilently(promptIfNew: Bool = true) async {
+        lastCheckAt = Date()
         do {
             let status = try await fetchLatestStatus()
             if case .available(let update) = status {
                 availableUpdate = update
+                if promptIfNew, !isInstalling, promptedVersion != update.version, alertMessage == nil {
+                    promptedVersion = update.version
+                    alertMessage = (
+                        "发现新版本 Pi \(update.version)",
+                        "当前版本为 \(currentVersion)，是否立即下载并安装更新？",
+                        true
+                    )
+                }
             } else {
                 availableUpdate = nil
             }
