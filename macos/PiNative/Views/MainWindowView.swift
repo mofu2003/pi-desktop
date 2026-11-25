@@ -55,7 +55,8 @@ struct MainWindowView: View {
                 isCustomizing: $isCustomizing,
                 onNewSession: { target in
                     Task {
-                        if await sessionStore.newSession(targetProject: target) {
+                        let resolved: SessionProjectTarget = target.map { .project($0) } ?? .unassigned
+                        if await sessionStore.newSession(target: resolved) {
                             draft = ""
                             attachments = []
                             isCustomizing = false
@@ -87,7 +88,7 @@ struct MainWindowView: View {
                 .toolbar {
                     ToolbarItem(placement: .navigation) {
                         HStack(spacing: 7) {
-                            if let activeProject {
+                            if !isCustomizing, let activeProject {
                                 HStack(spacing: 5) {
                                     Image(systemName: activeProject.ssh != nil ? "terminal" : "folder")
                                         .foregroundStyle(.secondary)
@@ -133,6 +134,12 @@ struct MainWindowView: View {
                     }
                 }
         }
+        .background {
+            if !sessionStore.isRuntimeConnected {
+                LeadingTitlebarAccessory(content: AnyView(connectionStatus))
+                    .frame(width: 0, height: 0)
+            }
+        }
         .alert(
             updateService.alertMessage?.title ?? "",
             isPresented: Binding(
@@ -157,9 +164,10 @@ struct MainWindowView: View {
                 existingProjects: libraryStore.projects,
                 onCreate: { created in
                     libraryStore.addProject(created)
+                    libraryStore.refreshSessions(for: created)
                     isCreatingProject = false
                     if canChooseProject {
-                        Task { _ = await sessionStore.newSession(targetProject: created) }
+                        Task { _ = await sessionStore.newSession(target: .project(created)) }
                     }
                 }
             )
@@ -211,12 +219,20 @@ struct MainWindowView: View {
                 guard !trimmed.isEmpty else { return }
                 Task {
                     if target.session.path == sessionStore.activeSessionPath {
-                        _ = await sessionStore.renameActiveSession(to: trimmed)
+                        guard await sessionStore.renameActiveSession(to: trimmed) else { return }
                     } else {
-                        try? SessionStore.renameSessionFile(at: target.session.path, name: trimmed)
+                        let path = target.session.path
+                        do {
+                            try await Task.detached(priority: .userInitiated) {
+                                try SessionStore.renameSessionFile(at: path, name: trimmed)
+                            }.value
+                        } catch {
+                            sessionStore.errorMessage = error.localizedDescription
+                            return
+                        }
                     }
                     libraryStore.renameSession(path: target.session.path, name: trimmed)
-                    libraryStore.refreshAllSessions(unassignedWorkspace: sessionStore.unassignedWorkspace)
+                    libraryStore.refreshSessions(for: target.project)
                     renameTarget = nil
                 }
             }
@@ -232,14 +248,25 @@ struct MainWindowView: View {
             Button(deleteTarget?.permanent == true ? "永久删除" : "移到废纸篓", role: .destructive) {
                 guard let target = deleteTarget else { return }
                 deleteTarget = nil
-                if target.permanent {
-                    try? SessionStore.deleteSession(at: target.session.path)
-                } else {
-                    try? SessionStore.trashSession(at: target.session.path)
+                let path = target.session.path
+                let permanent = target.permanent
+                Task {
+                    do {
+                        try await Task.detached(priority: .userInitiated) {
+                            if permanent {
+                                try SessionStore.deleteSession(at: path)
+                            } else {
+                                try SessionStore.trashSession(at: path)
+                            }
+                        }.value
+                        libraryStore.removeSession(path: path, projectPath: target.project.path)
+                        libraryStore.refreshSessions(for: target.project)
+                    } catch {
+                        sessionStore.errorMessage = error.localizedDescription
+                    }
                 }
-                libraryStore.removeSession(path: target.session.path, projectPath: target.project.path)
                 if target.session.path == sessionStore.activeSessionPath {
-                    Task { _ = await sessionStore.newSession() }
+                    Task { _ = await sessionStore.newSession(target: .unassigned) }
                 }
             }
         } message: {
@@ -270,7 +297,7 @@ struct MainWindowView: View {
                     onBack: { isCustomizing = false }
                 )
             } else if hasConversation {
-                VStack(spacing: 0) {
+                ZStack(alignment: .bottom) {
                     MessageListView(
                         messages: sessionStore.messages,
                         toolExecutions: sessionStore.toolExecutions,
@@ -278,10 +305,25 @@ struct MainWindowView: View {
                         optimisticUser: sessionStore.optimisticUser,
                         isStreaming: sessionStore.isStreaming
                     )
+                    .equatable()
                     if sessionStore.state != nil {
                         composerBlock
-                            .padding(.horizontal, 20)
+                            .padding(.horizontal, 28)
+                            .padding(.top, 26)
                             .padding(.bottom, 14)
+                            .background(
+                                LinearGradient(
+                                    colors: [
+                                        Color(nsColor: .textBackgroundColor).opacity(0),
+                                        Color(nsColor: .textBackgroundColor).opacity(0.88),
+                                        Color(nsColor: .textBackgroundColor)
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                                .allowsHitTesting(false)
+                            )
+                            .zIndex(10)
                     }
                 }
             } else {
@@ -289,10 +331,7 @@ struct MainWindowView: View {
                     Spacer(minLength: 24)
                     VStack(spacing: 24) {
                         ChatEmptyStateView(
-                            projectName: activeProject?.ssh?.displayLabel ?? activeProject?.name,
-                            isConnecting: sessionStore.isConnecting,
-                            isRuntimeConnected: sessionStore.isRuntimeConnected,
-                            onReconnect: { Task { await sessionStore.reconnect() } }
+                            projectName: activeProject?.ssh?.displayLabel ?? activeProject?.name
                         )
                         composerBlock
                     }
@@ -300,6 +339,26 @@ struct MainWindowView: View {
                     Spacer(minLength: 40)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var connectionStatus: some View {
+        if !sessionStore.isRuntimeConnected {
+            if sessionStore.isConnecting {
+                Label("正在连接 Pi…", systemImage: "circle.dotted")
+                    .foregroundStyle(.secondary)
+            } else {
+                Button {
+                    Task { await sessionStore.reconnect() }
+                } label: {
+                    Label("Pi 连接失败", systemImage: "exclamationmark.circle")
+                        .foregroundStyle(.red)
+                }
+                .buttonStyle(.plain)
+                .help(sessionStore.errorMessage ?? "重新连接 Pi")
+                .accessibilityHint("重新连接 Pi")
             }
         }
     }
@@ -322,6 +381,7 @@ struct MainWindowView: View {
                 }
                 let oldDraft = draft
                 let oldImages = attachments
+                let submittedProject = sessionStore.project
                 draft = ""
                 attachments = []
                 Task {
@@ -329,12 +389,72 @@ struct MainWindowView: View {
                     if !accepted {
                         draft = oldDraft
                         attachments = oldImages
-                    } else {
-                        libraryStore.refreshAllSessions(unassignedWorkspace: sessionStore.unassignedWorkspace)
+                    } else if let submittedProject {
+                        libraryStore.refreshSessions(for: submittedProject)
                     }
                 }
             }
         )
+    }
+}
+
+private struct LeadingTitlebarAccessory: NSViewRepresentable {
+    let content: AnyView
+
+    func makeNSView(context: Context) -> Anchor {
+        Anchor(content: content)
+    }
+
+    func updateNSView(_ view: Anchor, context: Context) {
+        view.host.rootView = content
+        view.resizeAccessory()
+    }
+
+    static func dismantleNSView(_ view: Anchor, coordinator: ()) {
+        view.detachAccessory()
+    }
+
+    final class Anchor: NSView {
+        let host: NSHostingView<AnyView>
+        private let accessory = NSTitlebarAccessoryViewController()
+        private weak var attachedWindow: NSWindow?
+
+        init(content: AnyView) {
+            host = NSHostingView(rootView: content)
+            super.init(frame: .zero)
+            accessory.layoutAttribute = .left
+            accessory.view = host
+        }
+
+        required init?(coder: NSCoder) { nil }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            guard window !== attachedWindow else { return }
+            detachAccessory()
+            guard let window else { return }
+            resizeAccessory()
+            window.addTitlebarAccessoryViewController(accessory)
+            attachedWindow = window
+        }
+
+        func resizeAccessory() {
+            let size = host.fittingSize
+            if attachedWindow == nil {
+                host.setFrameSize(size)
+            } else if abs(host.frame.width - size.width) > 1 {
+                // AppKit controls the height of a leading title-bar accessory.
+                host.setFrameSize(NSSize(width: size.width, height: host.frame.height))
+            }
+        }
+
+        func detachAccessory() {
+            if let window = attachedWindow,
+               let index = window.titlebarAccessoryViewControllers.firstIndex(of: accessory) {
+                window.removeTitlebarAccessoryViewController(at: index)
+            }
+            attachedWindow = nil
+        }
     }
 }
 
@@ -370,9 +490,6 @@ private struct BannerBar: View {
 
 private struct ChatEmptyStateView: View {
     let projectName: String?
-    let isConnecting: Bool
-    let isRuntimeConnected: Bool
-    let onReconnect: () -> Void
 
     var body: some View {
         VStack(spacing: 16) {
@@ -383,21 +500,6 @@ private struct ChatEmptyStateView: View {
                     .font(.system(size: 25, weight: .semibold))
             }
 
-            if !isRuntimeConnected {
-                HStack(spacing: 8) {
-                    Circle()
-                        .fill(isConnecting ? Color.accentColor : Color.red)
-                        .frame(width: 8, height: 8)
-                    Text(isConnecting ? "正在连接 Pi…" : "Pi 未连接")
-                        .font(.body)
-                        .foregroundStyle(.secondary)
-                    if !isConnecting {
-                        Button("重新连接", action: onReconnect)
-                            .buttonStyle(.link)
-                    }
-                }
-                .padding(.top, 2)
-            }
         }
         .multilineTextAlignment(.center)
     }

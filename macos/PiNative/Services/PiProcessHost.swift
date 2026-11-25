@@ -2,6 +2,7 @@ import Foundation
 
 enum PiHostEvent: Sendable {
     case rpcEvent([String: JSONValue])
+    case agentEnded([AgentMessage]?)
     case hostError(String)
     case hostStopped
     case protocolError(String)
@@ -284,6 +285,11 @@ actor PiProcessHost {
         return response
     }
 
+    func getMessages() async throws -> [AgentMessage]? {
+        let response = try await command(["type": .string("get_messages")])
+        return try response["data"]?["messages"].map(decodeJSONValue)
+    }
+
     func stop(emit: Bool = true) async {
         let proc = process
         process = nil
@@ -383,7 +389,12 @@ actor PiProcessHost {
                     continuation.resume(returning: message)
                     continue
                 }
-                eventContinuation?.yield(.rpcEvent(message))
+                if message["type"]?.stringValue == "agent_end" {
+                    let messages: [AgentMessage]? = try? message["messages"].map(decodeJSONValue)
+                    eventContinuation?.yield(.agentEnded(messages))
+                } else {
+                    eventContinuation?.yield(.rpcEvent(message))
+                }
             } catch {
                 eventContinuation?.yield(.protocolError(String(rawLine.prefix(1000))))
             }

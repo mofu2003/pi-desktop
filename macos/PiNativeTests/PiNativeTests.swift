@@ -4,6 +4,27 @@ import Testing
 
 @Suite("PiNative 核心服务测试")
 struct PiNativeTests {
+    @Test("历史摘要兼容图文消息、空预览和会话别名")
+    func sessionSummaryReadsOnlySidebarFields() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let file = folder.appendingPathComponent("session.jsonl")
+        try """
+        {"type":"session","id":"history","cwd":"/tmp"}
+        {"type":"message","message":{"role":"user","content":[{"type":"image","data":"ignored"}]}}
+        {"type":"message","message":{"role":"assistant","content":[{"type":"text","text":"不应进入预览"}]}}
+        {"type":"message","message":{"role":"user","content":[null,{"type":"image","data":"ignored"},{"type":"text","text":"第一行"},{"type":"text","text":"第二行"}]}}
+        {"type":"message","message":{"role":"user","content":"较新的用户消息"}}
+        {"type":"session_info","name":" 自定义标题 "}
+        """.write(to: file, atomically: true, encoding: .utf8)
+
+        let summary = try #require(SessionStore.parseSessionSummary(at: file))
+        #expect(summary.messageCount == 4)
+        #expect(summary.title == "自定义标题")
+        #expect(summary.preview == "第一行\n第二行")
+    }
+
     @Test("SSH Config 解析多别名并跳过通配符")
     func parseSshConfig() {
         let hosts = SshConfigService.parseConfigContent("""

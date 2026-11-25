@@ -41,6 +41,7 @@ final class LibraryStore {
     var sessionsByProject: [String: [SessionSummary]] = [:]
 
     private let storageURL: URL
+    @ObservationIgnored private var sessionRefreshes: [String: Task<Void, Never>] = [:]
 
     init() {
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
@@ -55,16 +56,27 @@ final class LibraryStore {
         if let unassignedWorkspace {
             allProjects.append(unassignedWorkspace)
         }
-        let paths = allProjects.filter { $0.ssh == nil }.map(\.path)
-        Task {
-            let updated = await Task.detached(priority: .utility) {
-                var map: [String: [SessionSummary]] = [:]
-                for path in paths {
-                    map[path] = SessionStore.listSessions(for: path)
-                }
-                return map
-            }.value
-            self.sessionsByProject = updated
+        for project in allProjects {
+            refreshSessions(for: project)
+        }
+    }
+
+    func refreshSessions(for project: ProjectInfo) {
+        guard project.ssh == nil else { return }
+        let path = project.path
+        sessionRefreshes[path]?.cancel()
+        sessionRefreshes[path] = Task.detached(priority: .utility) { [weak self] in
+            let sessions = SessionStore.listSessions(for: path)
+            guard !Task.isCancelled else { return }
+            await self?.finishSessionRefresh(sessions, path: path)
+        }
+    }
+
+    private func finishSessionRefresh(_ sessions: [SessionSummary], path: String) {
+        guard !Task.isCancelled else { return }
+        sessionRefreshes[path] = nil
+        if sessionsByProject[path] != sessions {
+            sessionsByProject[path] = sessions
         }
     }
 
@@ -77,6 +89,7 @@ final class LibraryStore {
     }
 
     func removeProject(path: String) {
+        sessionRefreshes.removeValue(forKey: path)?.cancel()
         projects.removeAll { $0.path == path }
         pinnedProjects.removeAll { $0 == path }
         for index in groups.indices {
@@ -92,6 +105,7 @@ final class LibraryStore {
     }
 
     func removeSession(path: String, projectPath: String) {
+        sessionRefreshes.removeValue(forKey: projectPath)?.cancel()
         sessionsByProject[projectPath]?.removeAll { $0.path == path }
         pinnedSessions.removeAll { $0 == path }
         unreadSessions.removeAll { $0 == path }

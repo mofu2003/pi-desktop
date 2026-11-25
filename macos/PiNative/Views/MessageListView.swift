@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-struct MessageListView: View {
+struct MessageListView: View, Equatable {
     let messages: [AgentMessage]
     let toolExecutions: [String: ToolExecution]
     let runningBash: (command: String, output: String)?
@@ -9,6 +9,16 @@ struct MessageListView: View {
     let isStreaming: Bool
 
     @State private var lastScrollAt: Date = .distantPast
+
+    nonisolated static func == (lhs: MessageListView, rhs: MessageListView) -> Bool {
+        lhs.isStreaming == rhs.isStreaming
+            && lhs.runningBash?.command == rhs.runningBash?.command
+            && lhs.runningBash?.output == rhs.runningBash?.output
+            && lhs.optimisticUser?.text == rhs.optimisticUser?.text
+            && lhs.optimisticUser?.images == rhs.optimisticUser?.images
+            && lhs.messages == rhs.messages
+            && lhs.toolExecutions == rhs.toolExecutions
+    }
 
     private enum ConversationItem: Identifiable {
         case user(AgentMessage)
@@ -27,9 +37,15 @@ struct MessageListView: View {
     }
 
     private struct AssistantTurn: Equatable {
+        struct ToolCall: Equatable {
+            let id: String
+            let name: String
+            let args: [String: JSONValue]
+        }
+
         let id: String
         let thinkingBlocks: [String]
-        let toolCalls: [(id: String, name: String, args: [String: JSONValue])]
+        let toolCalls: [ToolCall]
         let textSegments: [String]
         let imageAttachments: [ImageAttachment]
         let errorMessages: [String]
@@ -38,18 +54,6 @@ struct MessageListView: View {
         let completedTimestampMs: Double?
         let isActiveTurn: Bool
 
-        static func == (lhs: AssistantTurn, rhs: AssistantTurn) -> Bool {
-            lhs.id == rhs.id
-                && lhs.thinkingBlocks == rhs.thinkingBlocks
-                && lhs.toolCalls.map(\.id) == rhs.toolCalls.map(\.id)
-                && lhs.textSegments == rhs.textSegments
-                && lhs.imageAttachments == rhs.imageAttachments
-                && lhs.errorMessages == rhs.errorMessages
-                && lhs.elapsedMs == rhs.elapsedMs
-                && lhs.usage == rhs.usage
-                && lhs.completedTimestampMs == rhs.completedTimestampMs
-                && lhs.isActiveTurn == rhs.isActiveTurn
-        }
     }
 
     private var conversationItems: [ConversationItem] {
@@ -75,7 +79,7 @@ struct MessageListView: View {
 
             case "assistant", "toolResult":
                 var thinkingBlocks: [String] = []
-                var toolCalls: [(id: String, name: String, args: [String: JSONValue])] = []
+                var toolCalls: [AssistantTurn.ToolCall] = []
                 var textSegments: [String] = []
                 var images: [ImageAttachment] = []
                 var errors: [String] = []
@@ -104,7 +108,7 @@ struct MessageListView: View {
                                     thinkingBlocks.append(value)
                                 }
                             case .toolCall(let id, let name, let args):
-                                toolCalls.append((id: id, name: name, args: args))
+                                toolCalls.append(.init(id: id, name: name, args: args))
                             case .text(let text):
                                 if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                                     textSegments.append(text)
@@ -154,7 +158,12 @@ struct MessageListView: View {
                                 .id(item.id)
 
                         case .assistantTurn(let turn):
-                            AssistantTurnView(turn: turn, toolExecutions: toolExecutions)
+                            AssistantTurnView(
+                                turn: turn,
+                                toolExecutions: turn.toolCalls.reduce(into: [:]) { executions, call in
+                                    executions[call.id] = toolExecutions[call.id]
+                                }
+                            )
                                 .equatable()
                                 .id(item.id)
 
@@ -196,7 +205,7 @@ struct MessageListView: View {
                     }
 
                     Color.clear
-                        .frame(height: 1)
+                        .frame(height: 150)
                         .id("bottom-anchor")
                 }
                 .frame(maxWidth: 740, alignment: .leading)
@@ -320,7 +329,7 @@ struct MessageListView: View {
 
                 // 2. 中间回答正文
                 ForEach(Array(turn.textSegments.enumerated()), id: \.offset) { _, text in
-                    MarkdownContentView(markdown: text)
+                    MarkdownContentView(markdown: text).equatable()
                 }
 
                 ForEach(turn.imageAttachments) { attachment in
@@ -663,7 +672,7 @@ private struct SummaryNoteView: View {
 
 // MARK: - 原生 Markdown 与围栏代码块渲染
 
-struct MarkdownContentView: View {
+struct MarkdownContentView: View, Equatable {
     let markdown: String
 
     private enum Segment: Identifiable {

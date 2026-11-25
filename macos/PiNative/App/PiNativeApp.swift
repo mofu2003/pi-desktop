@@ -33,7 +33,7 @@ struct PiNativeApp: App {
             }
             CommandGroup(replacing: .newItem) {
                 Button("新建会话") {
-                    Task { _ = await sessionStore.newSession() }
+                    Task { _ = await sessionStore.newSession(target: .unassigned) }
                 }
                 .keyboardShortcut("n", modifiers: .command)
             }

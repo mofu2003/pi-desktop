@@ -48,7 +48,7 @@ enum SessionStore {
 
         let summaries = entries
             .filter { $0.pathExtension == "jsonl" }
-            .compactMap { parseSessionSummary(at: $0) }
+            .compactMap { Task.isCancelled ? nil : parseSessionSummary(at: $0) }
             .filter { includeAll || $0.messageCount > 0 }
             .sorted { $0.modified > $1.modified }
 
@@ -56,11 +56,10 @@ enum SessionStore {
     }
 
     static func parseSessionSummary(at url: URL) -> SessionSummary? {
-        guard let content = try? String(contentsOf: url, encoding: .utf8) else { return nil }
-        let lines = content.components(separatedBy: .newlines).filter { !$0.isEmpty }
+        guard let content = try? Data(contentsOf: url) else { return nil }
+        let lines = content.split(separator: 0x0A)
         guard let headerLine = lines.first,
-              let headerData = headerLine.data(using: .utf8),
-              let header = try? JSONDecoder().decode([String: JSONValue].self, from: headerData),
+              let header = try? JSONDecoder().decode([String: JSONValue].self, from: headerLine),
               header["type"]?.stringValue == "session",
               let sessionId = header["id"]?.stringValue else {
             return nil
@@ -74,21 +73,19 @@ enum SessionStore {
         var firstUserMessage = ""
         var messageCount = 0
 
+        let decoder = JSONDecoder()
         for line in lines.dropFirst() {
-            guard let data = line.data(using: .utf8),
-                  let entry = try? JSONDecoder().decode([String: JSONValue].self, from: data),
-                  let entryType = entry["type"]?.stringValue else {
+            guard !Task.isCancelled else { return nil }
+            guard let entry = try? decoder.decode(SessionSummaryEntry.self, from: line) else {
                 continue
             }
-            if entryType == "session_info" {
-                let raw = entry["name"]?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines)
+            if entry.type == "session_info" {
+                let raw = entry.name?.trimmingCharacters(in: .whitespacesAndNewlines)
                 sessionName = raw?.isEmpty == false ? raw : nil
-            } else if entryType == "message", let msgObj = entry["message"] {
+            } else if let message = entry.message, entry.type == "message" {
                 messageCount += 1
-                if firstUserMessage.isEmpty,
-                   msgObj.objectValue?["role"]?.stringValue == "user",
-                   let contentVal = msgObj.objectValue?["content"] {
-                    firstUserMessage = extractPlainText(contentVal).trimmingCharacters(in: .whitespacesAndNewlines)
+                if firstUserMessage.isEmpty, let text = message.userText {
+                    firstUserMessage = text.trimmingCharacters(in: .whitespacesAndNewlines)
                 }
             }
         }
@@ -109,6 +106,57 @@ enum SessionStore {
             created: createdDate,
             modified: mtime
         )
+    }
+
+    private struct SessionSummaryEntry: Decodable {
+        let type: String
+        let name: String?
+        let message: Message?
+
+        private enum CodingKeys: String, CodingKey { case type, name, message }
+
+        init(from decoder: Decoder) throws {
+            let fields = try decoder.container(keyedBy: CodingKeys.self)
+            type = try fields.decode(String.self, forKey: .type)
+            name = type == "session_info" ? try? fields.decode(String.self, forKey: .name) : nil
+            message = type == "message" ? try? fields.decode(Message.self, forKey: .message) : nil
+        }
+
+        struct Message: Decodable {
+            let userText: String?
+
+            private enum CodingKeys: String, CodingKey { case role, content }
+
+            init(from decoder: Decoder) throws {
+                let fields = try decoder.container(keyedBy: CodingKeys.self)
+                guard (try? fields.decode(String.self, forKey: .role)) == "user" else {
+                    userText = nil
+                    return
+                }
+                if let text = try? fields.decode(String.self, forKey: .content) {
+                    userText = text
+                } else if let blocks = try? fields.decode([TextBlock].self, forKey: .content) {
+                    userText = blocks.compactMap(\.text).joined(separator: "\n")
+                } else {
+                    userText = nil
+                }
+            }
+        }
+
+        private struct TextBlock: Decodable {
+            let text: String?
+
+            private enum CodingKeys: String, CodingKey { case type, text }
+
+            init(from decoder: Decoder) throws {
+                guard let fields = try? decoder.container(keyedBy: CodingKeys.self),
+                      (try? fields.decode(String.self, forKey: .type)) == "text" else {
+                    text = nil
+                    return
+                }
+                text = try? fields.decode(String.self, forKey: .text)
+            }
+        }
     }
 
     static func renameSessionFile(at sessionPath: String, name: String) throws {

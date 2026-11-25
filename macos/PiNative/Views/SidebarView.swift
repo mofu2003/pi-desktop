@@ -32,7 +32,7 @@ struct SidebarView: View {
         Set(libraryStore.groups.flatMap(\.sessionPaths))
     }
 
-    private var allSessionsByPath: [String: (SessionSummary, ProjectInfo)] {
+    private func sessionsByPath(excluding archived: Set<String>) -> [String: (SessionSummary, ProjectInfo)] {
         var map: [String: (SessionSummary, ProjectInfo)] = [:]
         var sources = libraryStore.projects
         if let unassigned = sessionStore.unassignedWorkspace {
@@ -40,23 +40,31 @@ struct SidebarView: View {
         }
         for project in sources {
             let list = libraryStore.sessionsByProject[project.path] ?? []
-            for session in list where !archivedPaths.contains(session.path) {
+            for session in list where !archived.contains(session.path) {
                 map[session.path] = (session, project)
             }
         }
         return map
     }
 
-    private var recentSessions: [(SessionSummary, ProjectInfo)] {
+    private func recentSessions(
+        excluding excluded: Set<String>, sortedBy sort: (SessionSummary, SessionSummary) -> Bool
+    ) -> [(SessionSummary, ProjectInfo)] {
         guard let unassigned = sessionStore.unassignedWorkspace else { return [] }
         let list = libraryStore.sessionsByProject[unassigned.path] ?? []
         return list
-            .filter { !archivedPaths.contains($0.path) && !groupedSessionPaths.contains($0.path) }
-            .sorted(by: sortByPinAndDate)
+            .filter { !excluded.contains($0.path) }
+            .sorted(by: sort)
             .map { ($0, unassigned) }
     }
 
     var body: some View {
+        let archived = archivedPaths
+        let excluded = archived.union(groupedSessionPaths)
+        let pinned = Set(libraryStore.pinnedSessions)
+        let grouped = libraryStore.groups.isEmpty ? [:] : sessionsByPath(excluding: archived)
+        let recent = recentSessions(excluding: excluded) { sortByPin($0, $1, pinned: pinned) }
+
         VStack(spacing: 0) {
             VStack(spacing: 2) {
                 SidebarTopActionButton(
@@ -101,8 +109,8 @@ struct SidebarView: View {
                             }
 
                         let groupSessions = group.sessionPaths
-                            .compactMap { allSessionsByPath[$0] }
-                            .sorted { sortByPin($0.0, $1.0) }
+                            .compactMap { grouped[$0] }
+                            .sorted { sortByPin($0.0, $1.0, pinned: pinned) }
                         if groupSessions.isEmpty {
                             emptyPlaceholder("暂无会话", leading: Layout.edgePadding)
                         } else {
@@ -147,8 +155,8 @@ struct SidebarView: View {
 
                             if isExpanded {
                                 let sessions = (libraryStore.sessionsByProject[project.path] ?? [])
-                                    .filter { !archivedPaths.contains($0.path) && !groupedSessionPaths.contains($0.path) }
-                                    .sorted(by: sortByPinAndDate)
+                                    .filter { !excluded.contains($0.path) }
+                                    .sorted { sortByPin($0, $1, pinned: pinned) }
                                 if sessions.isEmpty {
                                     emptyPlaceholder("暂无会话", leading: Layout.childIndent)
                                 } else {
@@ -163,10 +171,10 @@ struct SidebarView: View {
                     sectionHeader("最近")
                         .padding(.top, 12)
 
-                    if recentSessions.isEmpty {
+                    if recent.isEmpty {
                         emptyPlaceholder("暂无会话", leading: Layout.edgePadding)
                     } else {
-                        ForEach(recentSessions, id: \.0.path) { session, sourceProject in
+                        ForEach(recent, id: \.0.path) { session, sourceProject in
                             sessionRow(session, project: sourceProject, archived: false, textLeading: Layout.edgePadding)
                         }
                     }
@@ -325,16 +333,13 @@ struct SidebarView: View {
         }
     }
 
-    private func sortByPin(_ lhs: SessionSummary, _ rhs: SessionSummary) -> Bool {
-        let lPinned = libraryStore.pinnedSessions.contains(lhs.path)
-        let rPinned = libraryStore.pinnedSessions.contains(rhs.path)
+    private func sortByPin(_ lhs: SessionSummary, _ rhs: SessionSummary, pinned: Set<String>) -> Bool {
+        let lPinned = pinned.contains(lhs.path)
+        let rPinned = pinned.contains(rhs.path)
         if lPinned != rPinned { return lPinned }
         return lhs.modified > rhs.modified
     }
 
-    private func sortByPinAndDate(_ lhs: SessionSummary, _ rhs: SessionSummary) -> Bool {
-        sortByPin(lhs, rhs)
-    }
 }
 
 private struct SidebarTopActionButton: View {

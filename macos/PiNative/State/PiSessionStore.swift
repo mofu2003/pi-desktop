@@ -2,12 +2,17 @@ import AppKit
 import Foundation
 import Observation
 
+enum SessionProjectTarget: Sendable {
+    case keepCurrent
+    case unassigned
+    case project(ProjectInfo)
+}
+
 @Observable
 @MainActor
 final class PiSessionStore {
     var project: ProjectInfo?
     var unassignedWorkspace: ProjectInfo?
-    var sessions: [SessionSummary] = []
     var state: PiSessionState?
     var messages: [AgentMessage] = []
     var models: [PiModel] = []
@@ -74,7 +79,7 @@ final class PiSessionStore {
         _ = await startSession(project: target, sessionPath: activeSessionPath)
     }
 
-    func newSession(targetProject: ProjectInfo? = nil) async -> Bool {
+    func newSession(target: SessionProjectTarget = .unassigned) async -> Bool {
         if isStarting { return false }
         let fallbackWorkspace: ProjectInfo?
         if let unassignedWorkspace {
@@ -83,10 +88,20 @@ final class PiSessionStore {
             fallbackWorkspace = try? SessionStore.unassignedProject()
             unassignedWorkspace = fallbackWorkspace
         }
-        guard let target = targetProject ?? project ?? fallbackWorkspace else { return false }
 
-        if state == nil || !Self.isSameProjectTarget(target, project) {
-            return await startSession(project: target, sessionPath: nil)
+        let resolvedTarget: ProjectInfo?
+        switch target {
+        case .keepCurrent:
+            resolvedTarget = project ?? fallbackWorkspace
+        case .unassigned:
+            resolvedTarget = fallbackWorkspace
+        case .project(let explicit):
+            resolvedTarget = explicit
+        }
+        guard let targetProject = resolvedTarget else { return false }
+
+        if state == nil || !Self.isSameProjectTarget(targetProject, project) {
+            return await startSession(project: targetProject, sessionPath: nil)
         }
 
         let currentGen = generation
@@ -137,7 +152,6 @@ final class PiSessionStore {
         state = nil
         stats = nil
         messages = []
-        sessions = []
         toolExecutions = [:]
         activeSessionPath = sessionPath
 
@@ -161,7 +175,6 @@ final class PiSessionStore {
             stats = payload.stats
             commands = payload.commands
             activeSessionPath = payload.state.sessionFile ?? sessionPath
-            sessions = selectedProject.ssh == nil ? SessionStore.listSessions(for: selectedProject.path) : []
             return true
         } catch {
             if currentGen == generation {
@@ -483,6 +496,15 @@ final class PiSessionStore {
             isBashRunning = false
         case .protocolError(let raw):
             notificationMessage = ("warning", "协议解析异常：\(raw)")
+        case .agentEnded(let decoded):
+            flushPendingDeltas()
+            isStreaming = false
+            optimisticUser = nil
+            if let decoded {
+                messages = decoded
+                toolExecutions = Self.toolResultMap(from: decoded)
+            }
+            Task { [generation] in await refreshAfterRun(generation: generation) }
         case .rpcEvent(let dict):
             handleRpcEvent(dict)
         }
@@ -493,15 +515,6 @@ final class PiSessionStore {
         switch type {
         case "agent_start":
             isStreaming = true
-        case "agent_end":
-            flushPendingDeltas()
-            isStreaming = false
-            optimisticUser = nil
-            if let arr = dict["messages"], let decoded: [AgentMessage] = try? decodeValue(arr) {
-                messages = decoded
-                toolExecutions = Self.toolResultMap(from: decoded)
-            }
-            Task { await refreshAfterRun(generation: generation) }
         case "agent_settled":
             flushPendingDeltas()
             isStreaming = false
@@ -565,7 +578,7 @@ final class PiSessionStore {
             if let err = dict["errorMessage"]?.stringValue, !err.isEmpty {
                 errorMessage = err
             }
-            Task { await refreshAfterRun(generation: generation) }
+            Task { [generation] in await refreshAfterRun(generation: generation) }
         case "auto_retry_start":
             isRetrying = true
             let attempt = dict["attempt"]?.intValue ?? 1
@@ -697,7 +710,11 @@ final class PiSessionStore {
     private func scheduleDeltaFlush() {
         guard deltaFlushTask == nil else { return }
         deltaFlushTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .milliseconds(24))
+            do {
+                try await Task.sleep(for: .milliseconds(32))
+            } catch {
+                return
+            }
             self?.flushPendingDeltas()
         }
     }
@@ -779,7 +796,9 @@ final class PiSessionStore {
     }
 
     private func refreshStateOnly() async {
+        let targetGen = generation
         guard let res = try? await host.command(["type": .string("get_state")]),
+              targetGen == generation,
               let data = res["data"],
               var next: PiSessionState = try? decodeValue(data) else {
             return
@@ -789,34 +808,26 @@ final class PiSessionStore {
            let levels: [ThinkingLevel] = try? decodeValue(lvData) {
             next.availableThinkingLevels = levels
         }
-        updateState(next)
+        if targetGen == generation { updateState(next) }
     }
 
     private func refreshAfterRun(generation targetGen: Int) async {
         guard targetGen == generation else { return }
         await refreshStateOnly()
-        if let msgRes = try? await host.command(["type": .string("get_messages")]),
-           let msgData = msgRes["data"]?["messages"],
-           let decoded: [AgentMessage] = try? decodeValue(msgData) {
-            if targetGen == generation {
+        guard targetGen == generation else { return }
+        if let decoded = try? await host.getMessages() {
+            if targetGen == generation, messages != decoded {
                 messages = decoded
                 toolExecutions = Self.toolResultMap(from: decoded)
             }
         }
+        guard targetGen == generation else { return }
         if let statRes = try? await host.command(["type": .string("get_session_stats")]),
            let statData = statRes["data"],
            let decoded: PiSessionStats = try? decodeValue(statData) {
             if targetGen == generation { stats = decoded }
         }
-        if let project, project.ssh == nil {
-            let projectPath = project.path
-            let loaded = await Task.detached(priority: .utility) {
-                SessionStore.listSessions(for: projectPath)
-            }.value
-            if targetGen == generation {
-                sessions = loaded
-            }
-        }
+        guard targetGen == generation else { return }
         optimisticUser = nil
         statusText = nil
         isRetrying = false

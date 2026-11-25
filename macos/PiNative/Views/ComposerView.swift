@@ -113,7 +113,8 @@ struct ComposerView: View {
                         libraryStore: libraryStore,
                         isDisabled: sessionStore.isConnecting,
                         onSelectTarget: { target in
-                            Task { _ = await sessionStore.newSession(targetProject: target) }
+                            let resolved: SessionProjectTarget = target.map { .project($0) } ?? .unassigned
+                            Task { _ = await sessionStore.newSession(target: resolved) }
                         },
                         onCreateProject: onCreateProject
                     )
@@ -123,8 +124,7 @@ struct ComposerView: View {
                     .overlay(alignment: .topLeading) {
                         if !filteredSlashCommands.isEmpty {
                             slashMenuOverlay
-                                .fixedSize(horizontal: false, vertical: true)
-                                .alignmentGuide(.top) { d in d[.bottom] + 8 }
+                                .offset(y: -(slashMenuHeight + 8))
                                 .zIndex(30)
                         }
                     }
@@ -132,19 +132,28 @@ struct ComposerView: View {
 
             metricsBar
         }
-        .frame(maxWidth: 540)
+        .frame(maxWidth: 684)
         .frame(maxWidth: .infinity)
     }
 
-    // MARK: - 斜杠命令浮层（对齐图一 Codex 风格：等宽、高可读、柔和选中态）
+    // MARK: - 斜杠命令浮层（对齐图一 Codex 风格：等宽、向上展开、柔和选中态）
+
+    private var slashGroupOrder: [String] {
+        let grouped = Dictionary(grouping: filteredSlashCommands, by: \.group)
+        return ["常用会话指令", "扩展指令", "提示词模板", "Agent 技能", "其他指令"]
+            .filter { grouped[$0] != nil }
+    }
+
+    private var slashMenuHeight: CGFloat {
+        let rows = CGFloat(filteredSlashCommands.count)
+        let headers = CGFloat(slashGroupOrder.count)
+        return min(340, max(96, rows * 38 + headers * 28 + 16))
+    }
 
     private var slashMenuOverlay: some View {
         let grouped = Dictionary(grouping: filteredSlashCommands, by: \.group)
-        let groupOrder = ["常用会话指令", "扩展指令", "提示词模板", "Agent 技能", "其他指令"]
-            .filter { grouped[$0] != nil }
-        let estimatedRows = CGFloat(filteredSlashCommands.count)
-        let estimatedHeaders = CGFloat(groupOrder.count)
-        let menuHeight = min(330, max(96, estimatedRows * 38 + estimatedHeaders * 28 + 16))
+        let groupOrder = slashGroupOrder
+        let menuHeight = slashMenuHeight
 
         return ScrollView {
             VStack(alignment: .leading, spacing: 2) {
@@ -214,7 +223,7 @@ struct ComposerView: View {
             }
             .padding(8)
         }
-        .frame(width: 540, height: menuHeight)
+        .frame(width: 684, height: menuHeight)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(Color(nsColor: .controlBackgroundColor))
@@ -277,16 +286,17 @@ struct ComposerView: View {
             }
 
             TextField(
-                sessionStore.state != nil ? "给 Pi 发消息，/ 查看命令，! 执行命令…" : "正在连接 Pi…",
+                "给 Pi 发消息，/ 查看命令，! 执行命令…",
                 text: $draft,
                 axis: .vertical
             )
             .textFieldStyle(.plain)
             .font(.system(size: 15))
-            .lineLimit(1...5)
+            .lineLimit(1...6)
+            .frame(minHeight: 38, alignment: .topLeading)
             .padding(.horizontal, 16)
-            .padding(.top, attachments.isEmpty ? 12 : 4)
-            .padding(.bottom, 2)
+            .padding(.top, attachments.isEmpty ? 14 : 6)
+            .padding(.bottom, 4)
             .onKeyPress(.upArrow) {
                 guard !filteredSlashCommands.isEmpty else { return .ignored }
                 selectedSlashIndex = selectedSlashIndex > 0 ? selectedSlashIndex - 1 : filteredSlashCommands.count - 1
@@ -416,12 +426,13 @@ struct ComposerView: View {
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(Color(nsColor: .controlBackgroundColor))
+                .shadow(color: Color(nsColor: .textBackgroundColor).opacity(0.95), radius: 14, y: 0)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.1), lineWidth: 1)
         )
-        .shadow(color: Color.black.opacity(0.05), radius: 10, y: 3)
+        .shadow(color: Color.black.opacity(0.08), radius: 14, y: 4)
     }
 
     // MARK: - 会话运行选项 Popover（不含自动压缩）
