@@ -4,6 +4,7 @@ import SwiftUI
 struct SidebarView: View {
     @Bindable var sessionStore: PiSessionStore
     @Bindable var libraryStore: LibraryStore
+    @Bindable var updateService: UpdateService
     @Binding var isCustomizing: Bool
 
     let onNewSession: (ProjectInfo?) -> Void
@@ -12,8 +13,16 @@ struct SidebarView: View {
     let onDeleteSession: (SessionSummary, ProjectInfo, Bool) -> Void
 
     @State private var isArchiveExpanded = false
+    @State private var expandedProjects: Set<String> = []
     @State private var groupDialog: (title: String, initial: String, onSave: (String) -> Void)?
     @State private var groupInput = ""
+
+    private enum Layout {
+        static let edgePadding: CGFloat = 14
+        static let iconWidth: CGFloat = 18
+        static let iconTextGap: CGFloat = 8
+        static let childIndent: CGFloat = edgePadding + iconWidth + iconTextGap
+    }
 
     private var archivedPaths: Set<String> {
         Set(libraryStore.archivedSessions.map(\.session.path))
@@ -49,7 +58,7 @@ struct SidebarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            VStack(spacing: 4) {
+            VStack(spacing: 2) {
                 SidebarTopActionButton(
                     title: "新建会话",
                     systemImage: "square.and.pencil",
@@ -66,68 +75,61 @@ struct SidebarView: View {
                     action: { isCustomizing.toggle() }
                 )
             }
-            .padding(.horizontal, 10)
+            .padding(.horizontal, 8)
             .padding(.top, 8)
-            .padding(.bottom, 6)
+            .padding(.bottom, 10)
 
-            List {
-                ForEach(Array(libraryStore.groups.enumerated()), id: \.element.id) { index, group in
-                    Section {
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 2) {
+                    ForEach(Array(libraryStore.groups.enumerated()), id: \.element.id) { index, group in
+                        sectionHeader(group.name)
+                            .contextMenu {
+                                Button("重命名分区…") {
+                                    groupInput = group.name
+                                    groupDialog = ("重命名分区", group.name, { name in
+                                        libraryStore.renameGroup(id: group.id, name: name)
+                                    })
+                                }
+                                Button("上移分区") {
+                                    guard index > 0 else { return }
+                                    libraryStore.groups.swapAt(index, index - 1)
+                                }
+                                .disabled(index == 0)
+                                Button("移除分区") {
+                                    libraryStore.removeGroup(id: group.id)
+                                }
+                            }
+
                         let groupSessions = group.sessionPaths
                             .compactMap { allSessionsByPath[$0] }
                             .sorted { sortByPin($0.0, $1.0) }
                         if groupSessions.isEmpty {
-                            Text("暂无会话")
-                                .font(.caption)
-                                .foregroundStyle(.tertiary)
+                            emptyPlaceholder("暂无会话", leading: Layout.edgePadding)
                         } else {
                             ForEach(groupSessions, id: \.0.path) { session, sourceProject in
-                                sessionRow(session, project: sourceProject, archived: false)
-                            }
-                        }
-                    } header: {
-                        HStack {
-                            Text(group.name)
-                            Spacer()
-                        }
-                        .contextMenu {
-                            Button("重命名分区…") {
-                                groupInput = group.name
-                                groupDialog = ("重命名分区", group.name, { name in
-                                    libraryStore.renameGroup(id: group.id, name: name)
-                                })
-                            }
-                            Button("上移分区") {
-                                guard index > 0 else { return }
-                                libraryStore.groups.swapAt(index, index - 1)
-                            }
-                            .disabled(index == 0)
-                            Button("移除分区") {
-                                libraryStore.removeGroup(id: group.id)
+                                sessionRow(session, project: sourceProject, archived: false, textLeading: Layout.edgePadding)
                             }
                         }
                     }
-                }
 
-                if !libraryStore.projects.isEmpty {
-                    Section("项目") {
+                    if !libraryStore.projects.isEmpty {
+                        sectionHeader("项目")
+                            .padding(.top, libraryStore.groups.isEmpty ? 0 : 10)
+
                         ForEach(sortedProjects) { project in
-                            DisclosureGroup {
-                                let sessions = (libraryStore.sessionsByProject[project.path] ?? [])
-                                    .filter { !archivedPaths.contains($0.path) && !groupedSessionPaths.contains($0.path) }
-                                    .sorted(by: sortByPinAndDate)
-                                if sessions.isEmpty {
-                                    Text("暂无会话")
-                                        .font(.caption)
-                                        .foregroundStyle(.tertiary)
-                                } else {
-                                    ForEach(sessions) { session in
-                                        sessionRow(session, project: project, archived: false)
+                            let isExpanded = expandedProjects.contains(project.path)
+                            SidebarDisclosureHeader(
+                                title: project.name,
+                                systemImage: "folder",
+                                isExpanded: isExpanded
+                            ) {
+                                withAnimation(.easeInOut(duration: 0.16)) {
+                                    if isExpanded {
+                                        expandedProjects.remove(project.path)
+                                    } else {
+                                        expandedProjects.insert(project.path)
                                     }
                                 }
-                            } label: {
-                                Label(project.name, systemImage: "folder")
-                                    .lineLimit(1)
                             }
                             .contextMenu {
                                 Button("在此项目中新建会话") { onNewSession(project) }
@@ -142,39 +144,83 @@ struct SidebarView: View {
                                     libraryStore.removeProject(path: project.path)
                                 }
                             }
-                        }
-                    }
-                }
 
-                Section("最近") {
-                    if recentSessions.isEmpty {
-                        Text("暂无会话")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                    } else {
-                        ForEach(recentSessions, id: \.0.path) { session, sourceProject in
-                            sessionRow(session, project: sourceProject, archived: false)
-                        }
-                    }
-                }
-
-                Section {
-                    DisclosureGroup(isExpanded: $isArchiveExpanded) {
-                        if libraryStore.archivedSessions.isEmpty {
-                            Text("暂无归档会话")
-                                .font(.caption)
-                                .foregroundStyle(.tertiary)
-                        } else {
-                            ForEach(libraryStore.archivedSessions) { entry in
-                                sessionRow(entry.session, project: entry.sourceProject, archived: true)
+                            if isExpanded {
+                                let sessions = (libraryStore.sessionsByProject[project.path] ?? [])
+                                    .filter { !archivedPaths.contains($0.path) && !groupedSessionPaths.contains($0.path) }
+                                    .sorted(by: sortByPinAndDate)
+                                if sessions.isEmpty {
+                                    emptyPlaceholder("暂无会话", leading: Layout.childIndent)
+                                } else {
+                                    ForEach(sessions) { session in
+                                        sessionRow(session, project: project, archived: false, textLeading: Layout.childIndent)
+                                    }
+                                }
                             }
                         }
-                    } label: {
-                        Label("归档", systemImage: "archivebox")
+                    }
+
+                    sectionHeader("最近")
+                        .padding(.top, 12)
+
+                    if recentSessions.isEmpty {
+                        emptyPlaceholder("暂无会话", leading: Layout.edgePadding)
+                    } else {
+                        ForEach(recentSessions, id: \.0.path) { session, sourceProject in
+                            sessionRow(session, project: sourceProject, archived: false, textLeading: Layout.edgePadding)
+                        }
+                    }
+
+                    SidebarDisclosureHeader(
+                        title: "归档",
+                        systemImage: "archivebox",
+                        isExpanded: isArchiveExpanded
+                    ) {
+                        withAnimation(.easeInOut(duration: 0.16)) {
+                            isArchiveExpanded.toggle()
+                        }
+                    }
+                    .padding(.top, 12)
+
+                    if isArchiveExpanded {
+                        if libraryStore.archivedSessions.isEmpty {
+                            emptyPlaceholder("暂无归档会话", leading: Layout.childIndent)
+                        } else {
+                            ForEach(libraryStore.archivedSessions) { entry in
+                                sessionRow(entry.session, project: entry.sourceProject, archived: true, textLeading: Layout.childIndent)
+                            }
+                        }
                     }
                 }
+                .padding(.horizontal, 8)
+                .padding(.bottom, 12)
             }
-            .listStyle(.sidebar)
+
+            if let update = updateService.availableUpdate {
+                Divider()
+                Button {
+                    updateService.alertMessage = (
+                        "发现新版本 Pi \(update.version)",
+                        "是否立即在软件内下载并安装更新？",
+                        true
+                    )
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "arrow.down.circle.fill")
+                            .foregroundStyle(Color.accentColor)
+                        Text(updateService.isInstalling ? "正在下载更新…" : "更新到 v\(update.version)")
+                            .font(.body.weight(.medium))
+                        Spacer()
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .disabled(updateService.isInstalling)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 4)
+            }
         }
         .alert(groupDialog?.title ?? "", isPresented: Binding(
             get: { groupDialog != nil },
@@ -191,6 +237,24 @@ struct SidebarView: View {
         }
     }
 
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title)
+            .font(.callout.weight(.medium))
+            .foregroundStyle(.secondary)
+            .padding(.leading, Layout.edgePadding)
+            .padding(.trailing, 8)
+            .padding(.top, 4)
+            .padding(.bottom, 4)
+    }
+
+    private func emptyPlaceholder(_ title: String, leading: CGFloat) -> some View {
+        Text(title)
+            .font(.callout)
+            .foregroundStyle(.tertiary)
+            .padding(.leading, leading)
+            .padding(.vertical, 4)
+    }
+
     private var sortedProjects: [ProjectInfo] {
         libraryStore.projects.sorted { lhs, rhs in
             let lPinned = libraryStore.pinnedProjects.contains(lhs.path)
@@ -201,39 +265,24 @@ struct SidebarView: View {
     }
 
     @ViewBuilder
-    private func sessionRow(_ session: SessionSummary, project: ProjectInfo, archived: Bool) -> some View {
+    private func sessionRow(
+        _ session: SessionSummary,
+        project: ProjectInfo,
+        archived: Bool,
+        textLeading: CGFloat
+    ) -> some View {
         let title = libraryStore.sessionNames[session.path] ?? session.name ?? session.title
         let isSelected = session.path == sessionStore.activeSessionPath
         let isUnread = libraryStore.unreadSessions.contains(session.path)
         let isPinned = libraryStore.pinnedSessions.contains(session.path)
 
-        Button {
-            onOpenSession(session, project)
-        } label: {
-            HStack(spacing: 6) {
-                if isPinned {
-                    Image(systemName: "pin.fill")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-                Text(title)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                Spacer(minLength: 4)
-                if isUnread {
-                    Circle()
-                        .fill(Color.accentColor)
-                        .frame(width: 7, height: 7)
-                }
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .padding(.vertical, 3)
-        .padding(.horizontal, 6)
-        .background(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(isSelected ? Color.accentColor.opacity(0.16) : Color.clear)
+        SidebarSessionRowButton(
+            title: title,
+            isSelected: isSelected,
+            isUnread: isUnread,
+            isPinned: isPinned,
+            leadingPadding: textLeading,
+            action: { onOpenSession(session, project) }
         )
         .contextMenu {
             if archived {
@@ -301,15 +350,16 @@ private struct SidebarTopActionButton: View {
         Button(action: action) {
             HStack(spacing: 8) {
                 Image(systemName: systemImage)
-                    .font(.callout)
+                    .font(.body)
                     .foregroundStyle(isActive ? Color.accentColor : Color.secondary)
-                    .frame(width: 18)
+                    .frame(width: 18, alignment: .center)
                 Text(title)
-                    .font(.callout.weight(isActive ? .semibold : .regular))
-                    .foregroundStyle(isActive ? Color.primary : Color.primary.opacity(0.9))
+                    .font(.body.weight(isActive ? .semibold : .regular))
+                    .foregroundStyle(isActive ? Color.primary : Color.primary.opacity(0.92))
                 Spacer()
             }
-            .padding(.horizontal, 10)
+            .padding(.leading, 14)
+            .padding(.trailing, 10)
             .padding(.vertical, 6)
             .background(
                 RoundedRectangle(cornerRadius: 7, style: .continuous)
@@ -319,6 +369,92 @@ private struct SidebarTopActionButton: View {
         }
         .buttonStyle(.plain)
         .disabled(isDisabled)
+        .onHover { isHovered = $0 }
+    }
+}
+
+private struct SidebarDisclosureHeader: View {
+    let title: String
+    let systemImage: String
+    let isExpanded: Bool
+    let action: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: systemImage)
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 18, alignment: .center)
+                Text(title)
+                    .font(.body)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.tertiary)
+                    .rotationEffect(.degrees(isExpanded ? 90 : 0))
+            }
+            .padding(.leading, 14)
+            .padding(.trailing, 10)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(isHovered ? Color.primary.opacity(0.06) : Color.clear)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+    }
+}
+
+private struct SidebarSessionRowButton: View {
+    let title: String
+    let isSelected: Bool
+    let isUnread: Bool
+    let isPinned: Bool
+    let leadingPadding: CGFloat
+    let action: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Text(title)
+                    .font(.body)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                Spacer(minLength: 4)
+                if isPinned {
+                    Image(systemName: "pin.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+                if isUnread {
+                    Circle()
+                        .fill(Color.accentColor)
+                        .frame(width: 7, height: 7)
+                }
+            }
+            .padding(.leading, leadingPadding)
+            .padding(.trailing, 10)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(
+                        isSelected
+                            ? Color.primary.opacity(0.1)
+                            : (isHovered ? Color.primary.opacity(0.05) : Color.clear)
+                    )
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
         .onHover { isHovered = $0 }
     }
 }

@@ -11,6 +11,7 @@
 		2696E685875E65BC6F70714F /* PiNativeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5050EDD345EFA38F05648D7 /* PiNativeApp.swift */; };
 		278FD506FEE179AE08CD5C81 /* PiMarkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F26995C972C89FA7D7A7ED74 /* PiMarkView.swift */; };
 		2B2E476DE2B1F390F52FFB95 /* SshConfigService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 970D212F92FD64D24279D522 /* SshConfigService.swift */; };
+		3458D179EE63B6909C8A653B /* UpdateService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46D805D5183F475A1363D03B /* UpdateService.swift */; };
 		3AE5E914BAB56DF52E69AEAA /* CustomizationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2790F1746F824B4350B7BC0 /* CustomizationService.swift */; };
 		4239A4460EB3C874B3ADCE77 /* CustomizeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6089A4B6E7FBBA9FC78F485 /* CustomizeView.swift */; };
 		4884712FC7243AAF79FFC83C /* PiSessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00465DBC102B4492A6CB7FC8 /* PiSessionStore.swift */; };
@@ -45,6 +46,7 @@
 		342FDC8B77CA75D20E5FEBA3 /* MainWindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindowView.swift; sourceTree = "<group>"; };
 		42A8DA1C8E55336D70578CA4 /* MessageListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageListView.swift; sourceTree = "<group>"; };
 		4446EE6988CE7A605C817E4A /* icon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = icon.icns; sourceTree = "<group>"; };
+		46D805D5183F475A1363D03B /* UpdateService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateService.swift; sourceTree = "<group>"; };
 		510D947F304F1E6271BAD110 /* PiNativeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PiNativeTests.swift; sourceTree = "<group>"; };
 		6E34ED3DD3286F73AB51CA85 /* PiProcessHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PiProcessHost.swift; sourceTree = "<group>"; };
 		9558C54F0EC4276DC0F39B24 /* LibraryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryStore.swift; sourceTree = "<group>"; };
@@ -91,6 +93,7 @@
 				6E34ED3DD3286F73AB51CA85 /* PiProcessHost.swift */,
 				AE452B026F581528DD400B38 /* SessionStore.swift */,
 				970D212F92FD64D24279D522 /* SshConfigService.swift */,
+				46D805D5183F475A1363D03B /* UpdateService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -269,6 +272,7 @@
 				D77235DA3A1E21553AD2A70E /* SessionStore.swift in Sources */,
 				B7C70FDCA4040FB4450C1980 /* SidebarView.swift in Sources */,
 				2B2E476DE2B1F390F52FFB95 /* SshConfigService.swift in Sources */,
+				3458D179EE63B6909C8A653B /* UpdateService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -325,7 +329,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -344,7 +348,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 0.6.0;
+				MARKETING_VERSION = 0.7.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -409,7 +413,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -422,7 +426,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 0.6.0;
+				MARKETING_VERSION = 0.7.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";

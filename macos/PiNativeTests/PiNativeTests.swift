@@ -95,4 +95,31 @@ struct PiNativeTests {
         )
         #expect(levels == [.off, .low, .high])
     }
+
+    @Test("软件内更新解析匹配架构安装包")
+    func resolveAppUpdate() throws {
+        let json = """
+        {
+          "tag_name": "v0.7.0",
+          "draft": false,
+          "prerelease": false,
+          "assets": [
+            {
+              "name": "Pi-0.7.0-arm64.dmg",
+              "state": "uploaded",
+              "size": 123456,
+              "digest": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+            }
+          ]
+        }
+        """.data(using: .utf8)!
+
+        let status = try UpdateService.resolveUpdate(jsonData: json, currentVersion: "0.6.0", architecture: "arm64")
+        guard case .available(let update) = status else {
+            Issue.record("Expected available update")
+            return
+        }
+        #expect(update.version == "0.7.0")
+        #expect(update.sha256 == "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+    }
 }

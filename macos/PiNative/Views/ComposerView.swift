@@ -123,37 +123,43 @@ struct ComposerView: View {
                     .overlay(alignment: .topLeading) {
                         if !filteredSlashCommands.isEmpty {
                             slashMenuOverlay
+                                .fixedSize(horizontal: false, vertical: true)
                                 .alignmentGuide(.top) { d in d[.bottom] + 8 }
-                                .zIndex(20)
+                                .zIndex(30)
                         }
                     }
             }
 
             metricsBar
         }
-        .frame(maxWidth: 740)
+        .frame(maxWidth: 540)
         .frame(maxWidth: .infinity)
     }
 
-    // MARK: - 斜杠命令浮层（macOS Spotlight 风格）
+    // MARK: - 斜杠命令浮层（对齐图一 Codex 风格：等宽、高可读、柔和选中态）
 
     private var slashMenuOverlay: some View {
         let grouped = Dictionary(grouping: filteredSlashCommands, by: \.group)
         let groupOrder = ["常用会话指令", "扩展指令", "提示词模板", "Agent 技能", "其他指令"]
             .filter { grouped[$0] != nil }
+        let estimatedRows = CGFloat(filteredSlashCommands.count)
+        let estimatedHeaders = CGFloat(groupOrder.count)
+        let menuHeight = min(330, max(96, estimatedRows * 38 + estimatedHeaders * 28 + 16))
 
         return ScrollView {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 2) {
                 ForEach(Array(groupOrder.enumerated()), id: \.element) { gIdx, groupName in
                     if gIdx > 0 {
-                        Divider().padding(.vertical, 3)
+                        Divider()
+                            .padding(.vertical, 4)
+                            .padding(.horizontal, 8)
                     }
                     Text(groupName)
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
-                        .padding(.horizontal, 10)
-                        .padding(.top, 4)
-                        .padding(.bottom, 2)
+                        .padding(.horizontal, 12)
+                        .padding(.top, gIdx == 0 ? 4 : 2)
+                        .padding(.bottom, 3)
 
                     ForEach(grouped[groupName] ?? []) { item in
                         let flatIdx = filteredSlashCommands.firstIndex(where: { $0.id == item.id }) ?? 0
@@ -162,33 +168,42 @@ struct ComposerView: View {
                         Button {
                             draft = "/\(item.id) "
                         } label: {
-                            HStack(spacing: 12) {
-                                Text("/\(item.id)")
-                                    .font(.system(.callout, design: .monospaced).weight(.semibold))
-                                    .foregroundStyle(isSelected ? Color.white : Color.primary)
-                                Text(item.description)
+                            HStack(spacing: 10) {
+                                Image(systemName: slashIcon(for: item.id, group: item.group))
                                     .font(.callout)
-                                    .foregroundStyle(isSelected ? Color.white.opacity(0.92) : Color.secondary)
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 18, alignment: .center)
+
+                                Text("/\(item.id)")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundStyle(.primary)
+
+                                Text(item.description)
+                                    .font(.system(size: 13.5))
+                                    .foregroundStyle(.secondary)
                                     .lineLimit(1)
                                     .truncationMode(.tail)
+
                                 Spacer(minLength: 8)
+
                                 Text(item.sourceLabel)
-                                    .font(.caption2)
-                                    .padding(.horizontal, 6)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .padding(.horizontal, 7)
                                     .padding(.vertical, 2)
                                     .background(
                                         RoundedRectangle(cornerRadius: 5, style: .continuous)
-                                            .fill(isSelected ? Color.white.opacity(0.22) : Color.secondary.opacity(0.12))
+                                            .fill(Color.primary.opacity(0.06))
                                     )
-                                    .foregroundStyle(isSelected ? Color.white : Color.secondary)
                             }
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .background(
-                                RoundedRectangle(cornerRadius: 7, style: .continuous)
-                                    .fill(isSelected ? Color.accentColor : Color.clear)
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .fill(isSelected ? Color.primary.opacity(0.075) : Color.clear)
                             )
+                            .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                         .onHover { hovering in
@@ -197,16 +212,35 @@ struct ComposerView: View {
                     }
                 }
             }
-            .padding(6)
+            .padding(8)
         }
-        .frame(maxWidth: 520, maxHeight: 280)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .frame(width: 540, height: menuHeight)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color(nsColor: .controlBackgroundColor))
+        )
         .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.1), lineWidth: 1)
         )
-        .shadow(color: Color.black.opacity(0.14), radius: 14, y: 6)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .shadow(color: Color.black.opacity(0.14), radius: 16, y: 6)
+    }
+
+    private func slashIcon(for id: String, group: String) -> String {
+        switch id {
+        case "compact": return "circle.dashed"
+        case "new": return "plus.circle"
+        case "name": return "pencil"
+        case "fork": return "arrow.triangle.branch"
+        case "clone": return "doc.on.doc"
+        case "copy": return "square.on.square"
+        case "export": return "square.and.arrow.up"
+        default:
+            if group == "Agent 技能" { return "sparkles" }
+            if group == "扩展指令" { return "puzzlepiece.extension" }
+            if group == "提示词模板" { return "text.quote" }
+            return "terminal"
+        }
     }
 
     // MARK: - 主输入卡片
@@ -242,53 +276,49 @@ struct ComposerView: View {
                 }
             }
 
-            TextEditor(text: $draft)
-                .font(.body)
-                .scrollContentBackground(.hidden)
-                .frame(minHeight: 42, maxHeight: 150)
-                .padding(.horizontal, 8)
-                .padding(.top, attachments.isEmpty ? 8 : 0)
-                .overlay(alignment: .topLeading) {
-                    if draft.isEmpty {
-                        Text(sessionStore.state != nil ? "给 Pi 发消息，/ 查看命令，! 执行命令…" : "正在连接 Pi…")
-                            .font(.body)
-                            .foregroundStyle(.tertiary)
-                            .padding(.horizontal, 13)
-                            .padding(.top, attachments.isEmpty ? 8 : 0)
-                            .allowsHitTesting(false)
-                    }
-                }
-                .onKeyPress(.upArrow) {
-                    guard !filteredSlashCommands.isEmpty else { return .ignored }
-                    selectedSlashIndex = selectedSlashIndex > 0 ? selectedSlashIndex - 1 : filteredSlashCommands.count - 1
-                    return .handled
-                }
-                .onKeyPress(.downArrow) {
-                    guard !filteredSlashCommands.isEmpty else { return .ignored }
-                    selectedSlashIndex = selectedSlashIndex < filteredSlashCommands.count - 1 ? selectedSlashIndex + 1 : 0
-                    return .handled
-                }
-                .onKeyPress(.tab) {
-                    guard !filteredSlashCommands.isEmpty,
-                          filteredSlashCommands.indices.contains(selectedSlashIndex) else { return .ignored }
+            TextField(
+                sessionStore.state != nil ? "给 Pi 发消息，/ 查看命令，! 执行命令…" : "正在连接 Pi…",
+                text: $draft,
+                axis: .vertical
+            )
+            .textFieldStyle(.plain)
+            .font(.system(size: 15))
+            .lineLimit(1...5)
+            .padding(.horizontal, 16)
+            .padding(.top, attachments.isEmpty ? 12 : 4)
+            .padding(.bottom, 2)
+            .onKeyPress(.upArrow) {
+                guard !filteredSlashCommands.isEmpty else { return .ignored }
+                selectedSlashIndex = selectedSlashIndex > 0 ? selectedSlashIndex - 1 : filteredSlashCommands.count - 1
+                return .handled
+            }
+            .onKeyPress(.downArrow) {
+                guard !filteredSlashCommands.isEmpty else { return .ignored }
+                selectedSlashIndex = selectedSlashIndex < filteredSlashCommands.count - 1 ? selectedSlashIndex + 1 : 0
+                return .handled
+            }
+            .onKeyPress(.tab) {
+                guard !filteredSlashCommands.isEmpty,
+                      filteredSlashCommands.indices.contains(selectedSlashIndex) else { return .ignored }
+                draft = "/\(filteredSlashCommands[selectedSlashIndex].id) "
+                return .handled
+            }
+            .onKeyPress(.return) {
+                if !filteredSlashCommands.isEmpty,
+                   filteredSlashCommands.indices.contains(selectedSlashIndex) {
                     draft = "/\(filteredSlashCommands[selectedSlashIndex].id) "
                     return .handled
                 }
-                .onKeyPress(.return) {
-                    if !filteredSlashCommands.isEmpty,
-                       filteredSlashCommands.indices.contains(selectedSlashIndex) {
-                        draft = "/\(filteredSlashCommands[selectedSlashIndex].id) "
-                        return .handled
-                    }
-                    if NSEvent.modifierFlags.contains(.shift) {
-                        return .ignored
-                    }
-                    if canSend {
-                        onSubmit(draft, attachments)
-                        return .handled
-                    }
-                    return .ignored
+                if NSEvent.modifierFlags.contains(.shift) {
+                    draft += "\n"
+                    return .handled
                 }
+                if canSend {
+                    onSubmit(draft, attachments)
+                    return .handled
+                }
+                return .handled
+            }
 
             HStack(spacing: 8) {
                 Button(action: pickImages) {
@@ -334,18 +364,20 @@ struct ComposerView: View {
                 Button {
                     isModelOpen.toggle()
                 } label: {
-                    HStack(spacing: 4) {
+                    HStack(spacing: 5) {
                         Text(sessionStore.state?.model?.displayName ?? "选择模型")
-                            .font(.callout)
+                            .font(.body)
                         if let level = sessionStore.state?.thinkingLevel, level != .off {
                             Text(level.displayName)
-                                .font(.caption)
+                                .font(.callout)
                                 .foregroundStyle(.secondary)
                         }
                         Image(systemName: "chevron.down")
-                            .font(.caption2)
+                            .font(.caption)
                             .foregroundStyle(.secondary)
                     }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
                 }
                 .buttonStyle(.plain)
                 .disabled(sessionStore.isConnecting || activeRun)
@@ -358,8 +390,9 @@ struct ComposerView: View {
                         Task { await sessionStore.stop() }
                     } label: {
                         Image(systemName: "stop.circle.fill")
-                            .font(.title2)
+                            .font(.system(size: 28))
                             .foregroundStyle(.primary)
+                            .frame(width: 32, height: 32)
                     }
                     .buttonStyle(.plain)
                     .help("停止生成")
@@ -368,15 +401,16 @@ struct ComposerView: View {
                         onSubmit(draft, attachments)
                     } label: {
                         Image(systemName: "arrow.up.circle.fill")
-                            .font(.title2)
+                            .font(.system(size: 28))
                             .foregroundStyle(canSend ? Color.accentColor : Color.secondary.opacity(0.4))
+                            .frame(width: 32, height: 32)
                     }
                     .buttonStyle(.plain)
                     .disabled(!canSend)
                     .help("发送消息")
                 }
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 14)
             .padding(.bottom, 10)
         }
         .background(
@@ -554,17 +588,20 @@ struct ComposerView: View {
             ?? ((used != nil && limit != nil && limit! > 0) ? Double(used!) / Double(limit!) * 100.0 : nil)
         let progress = min(100, percent ?? 0)
 
-        return HStack(spacing: 14) {
+        return HStack(spacing: 22) {
             Button {
                 openMetric = openMetric == .session ? nil : .session
             } label: {
-                HStack(spacing: 4) {
+                HStack(spacing: 5) {
                     Image(systemName: "clock")
                     Text(rounds == nil ? "会话统计 · —" : "\(rounds!) 轮 · \(steps!) 步\(timing.tokensPerSecond == nil ? "" : " · \(speedText)")")
                 }
-                .font(.caption)
+                .font(.system(size: 12))
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .popover(isPresented: Binding(
@@ -581,19 +618,22 @@ struct ComposerView: View {
                     metricRow("输出速率", speedText)
                 }
                 .padding(14)
-                .frame(width: 230)
+                .frame(width: 240)
             }
 
             Button {
                 openMetric = openMetric == .tokens ? nil : .tokens
             } label: {
-                HStack(spacing: 4) {
+                HStack(spacing: 5) {
                     Image(systemName: "cylinder.split.1x2")
                     Text(stats.map { "\($0.tokens.total.formatted()) tok · 缓存 \(formatPercent(hitRate))" } ?? "Token 用量 · —")
                 }
-                .font(.caption)
+                .font(.system(size: 12))
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .popover(isPresented: Binding(
@@ -611,7 +651,7 @@ struct ComposerView: View {
                     metricRow("累计费用", stats.map { String(format: "$%.4f", $0.cost) } ?? "—")
                 }
                 .padding(14)
-                .frame(width: 240)
+                .frame(width: 250)
             }
 
             Button {
@@ -621,9 +661,12 @@ struct ComposerView: View {
                     ContextRingView(progress: progress / 100.0)
                     Text("上下文 \(formatPercent(percent))")
                 }
-                .font(.caption)
+                .font(.system(size: 12))
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .popover(isPresented: Binding(
@@ -674,11 +717,11 @@ struct ComposerView: View {
     private func metricRow(_ label: String, _ value: String) -> some View {
         HStack {
             Text(label)
-                .font(.caption)
+                .font(.callout)
                 .foregroundStyle(.secondary)
             Spacer()
             Text(value)
-                .font(.caption)
+                .font(.callout)
                 .monospacedDigit()
         }
     }
@@ -797,9 +840,9 @@ private struct HostAndProjectPickerBar: View {
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
-                .font(.callout)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
+                .font(.body)
+                .padding(.horizontal, 13)
+                .padding(.vertical, 5)
                 .background(
                     Capsule()
                         .fill(activeSsh != nil ? Color.primary.opacity(0.09) : Color.clear)
@@ -843,9 +886,9 @@ private struct HostAndProjectPickerBar: View {
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
-                    .font(.callout)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
+                    .font(.body)
+                    .padding(.horizontal, 13)
+                    .padding(.vertical, 5)
                     .background(Capsule().fill(Color.primary.opacity(0.08)))
                 }
                 .menuStyle(.borderlessButton)
@@ -895,9 +938,9 @@ private struct HostAndProjectPickerBar: View {
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
-                    .font(.callout)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
+                    .font(.body)
+                    .padding(.horizontal, 13)
+                    .padding(.vertical, 5)
                     .background(
                         Capsule()
                             .fill(activeProject != nil ? Color.primary.opacity(0.08) : Color.clear)

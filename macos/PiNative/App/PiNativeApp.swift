@@ -4,6 +4,7 @@ import SwiftUI
 struct PiNativeApp: App {
     @State private var sessionStore = PiSessionStore()
     @State private var libraryStore = LibraryStore()
+    @State private var updateService = UpdateService()
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
     var body: some Scene {
@@ -11,10 +12,12 @@ struct PiNativeApp: App {
             MainWindowView(
                 sessionStore: sessionStore,
                 libraryStore: libraryStore,
+                updateService: updateService,
                 columnVisibility: $columnVisibility
             )
             .frame(minWidth: 900, minHeight: 620)
             .task {
+                updateService.startWatcher()
                 await sessionStore.bootstrap()
                 libraryStore.refreshAllSessions(unassignedWorkspace: sessionStore.unassignedWorkspace)
             }
@@ -22,6 +25,12 @@ struct PiNativeApp: App {
         .windowStyle(.hiddenTitleBar)
         .windowToolbarStyle(.unified(showsTitle: false))
         .commands {
+            CommandGroup(after: .appInfo) {
+                Button("检查更新…") {
+                    Task { await updateService.checkManually() }
+                }
+                .disabled(updateService.isChecking || updateService.isInstalling)
+            }
             CommandGroup(replacing: .newItem) {
                 Button("新建会话") {
                     Task { _ = await sessionStore.newSession() }

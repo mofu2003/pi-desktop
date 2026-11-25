@@ -25,7 +25,7 @@ struct CreateProjectSheet: View {
 
             HStack {
                 Text(folderURL?.path ?? "未选择文件夹（将创建独立工作区）")
-                    .font(.callout)
+                    .font(.body)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
@@ -81,7 +81,7 @@ struct ForkSessionSheet: View {
             Text("从历史消息分叉")
                 .font(.title3.weight(.semibold))
             Text("选择一条历史用户消息作为分叉起点，生成新会话。")
-                .font(.callout)
+                .font(.body)
                 .foregroundStyle(.secondary)
 
             if messages.isEmpty {

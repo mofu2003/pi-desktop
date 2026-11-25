@@ -4,6 +4,7 @@ import SwiftUI
 struct MainWindowView: View {
     @Bindable var sessionStore: PiSessionStore
     @Bindable var libraryStore: LibraryStore
+    @Bindable var updateService: UpdateService
     @Binding var columnVisibility: NavigationSplitViewVisibility
 
     @State private var draft = ""
@@ -50,6 +51,7 @@ struct MainWindowView: View {
             SidebarView(
                 sessionStore: sessionStore,
                 libraryStore: libraryStore,
+                updateService: updateService,
                 isCustomizing: $isCustomizing,
                 onNewSession: { target in
                     Task {
@@ -84,24 +86,29 @@ struct MainWindowView: View {
                 .background(Color(nsColor: .textBackgroundColor))
                 .toolbar {
                     ToolbarItem(placement: .navigation) {
-                        HStack(spacing: 6) {
+                        HStack(spacing: 7) {
                             if let activeProject {
-                                HStack(spacing: 4) {
+                                HStack(spacing: 5) {
                                     Image(systemName: activeProject.ssh != nil ? "terminal" : "folder")
                                         .foregroundStyle(.secondary)
-                                        .font(.caption)
+                                        .font(.callout)
                                     Text(activeProject.ssh?.displayLabel ?? activeProject.name)
-                                        .font(.subheadline)
+                                        .font(.body)
                                         .foregroundStyle(.secondary)
+                                        .lineLimit(1)
                                     Text("/")
                                         .foregroundStyle(.tertiary)
-                                        .font(.caption)
+                                        .font(.callout)
                                 }
                             }
                             Text(currentTitle)
-                                .font(.headline)
+                                .font(.system(size: 15, weight: .semibold))
                                 .lineLimit(1)
+                                .truncationMode(.tail)
                         }
+                        .frame(maxWidth: 320, alignment: .leading)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 4)
                     }
                     ToolbarItemGroup(placement: .primaryAction) {
                         if !isCustomizing, sessionStore.state != nil, !sessionStore.messages.isEmpty {
@@ -125,6 +132,25 @@ struct MainWindowView: View {
                         }
                     }
                 }
+        }
+        .alert(
+            updateService.alertMessage?.title ?? "",
+            isPresented: Binding(
+                get: { updateService.alertMessage != nil },
+                set: { if !$0 { updateService.alertMessage = nil } }
+            )
+        ) {
+            if updateService.alertMessage?.isUpdatePrompt == true {
+                Button("取消", role: .cancel) { updateService.alertMessage = nil }
+                Button("立即更新") {
+                    updateService.alertMessage = nil
+                    Task { await updateService.installAvailableUpdate() }
+                }
+            } else {
+                Button("好", role: .cancel) { updateService.alertMessage = nil }
+            }
+        } message: {
+            Text(updateService.alertMessage?.body ?? "")
         }
         .sheet(isPresented: $isCreatingProject) {
             CreateProjectSheet(
@@ -322,19 +348,19 @@ private struct BannerBar: View {
             Image(systemName: isError ? "exclamationmark.triangle.fill" : "info.circle.fill")
                 .foregroundStyle(isError ? Color.red : Color.accentColor)
             Text(text)
-                .font(.callout)
+                .font(.body)
                 .textSelection(.enabled)
                 .lineLimit(3)
             Spacer()
             Button(action: onDismiss) {
                 Image(systemName: "xmark")
-                    .font(.caption)
+                    .font(.callout)
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
         .background(isError ? Color.red.opacity(0.08) : Color.accentColor.opacity(0.08))
         .overlay(alignment: .bottom) {
             Divider()
@@ -349,15 +375,12 @@ private struct ChatEmptyStateView: View {
     let onReconnect: () -> Void
 
     var body: some View {
-        VStack(spacing: 14) {
-            PiMarkView(size: 46, showCardFrame: true)
+        VStack(spacing: 16) {
+            PiMarkView(size: 48, showCardFrame: true)
 
-            VStack(spacing: 6) {
+            VStack(spacing: 8) {
                 Text(projectName.map { "想用 Pi 在 \($0) 里做什么？" } ?? "想用 Pi 做什么？")
-                    .font(.system(size: 22, weight: .semibold))
-                Text("输入 / 浏览命令 · ! 运行 Shell · ⌘N 新建会话")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 25, weight: .semibold))
             }
 
             if !isRuntimeConnected {
@@ -366,7 +389,7 @@ private struct ChatEmptyStateView: View {
                         .fill(isConnecting ? Color.accentColor : Color.red)
                         .frame(width: 8, height: 8)
                     Text(isConnecting ? "正在连接 Pi…" : "Pi 未连接")
-                        .font(.callout)
+                        .font(.body)
                         .foregroundStyle(.secondary)
                     if !isConnecting {
                         Button("重新连接", action: onReconnect)

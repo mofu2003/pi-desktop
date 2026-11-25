@@ -47,6 +47,10 @@ actor PiProcessHost {
     private var currentSshTarget: SshTarget?
 
     private var eventContinuation: AsyncStream<PiHostEvent>.Continuation?
+    private var stdoutStreamTask: Task<Void, Never>?
+    private var stderrStreamTask: Task<Void, Never>?
+    private var stdoutStreamCont: AsyncStream<Data>.Continuation?
+    private var stderrStreamCont: AsyncStream<Data>.Continuation?
 
     nonisolated func events() -> AsyncStream<PiHostEvent> {
         AsyncStream { continuation in
@@ -167,27 +171,47 @@ actor PiProcessHost {
         self.process = proc
         self.stdinHandle = stdinPipe.fileHandleForWriting
 
-        stdoutPipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
-            let data = handle.availableData
-            if data.isEmpty {
-                handle.readabilityHandler = nil
-                return
+        let (outStream, outCont) = AsyncStream<Data>.makeStream()
+        let (errStream, errCont) = AsyncStream<Data>.makeStream()
+        self.stdoutStreamCont = outCont
+        self.stderrStreamCont = errCont
+
+        self.stdoutStreamTask = Task { [weak self] in
+            for await chunk in outStream {
+                await self?.handleStdoutData(chunk, from: proc)
             }
-            Task { await self?.handleStdoutData(data, from: proc) }
+        }
+        self.stderrStreamTask = Task { [weak self] in
+            for await chunk in errStream {
+                await self?.handleStderrData(chunk, from: proc)
+            }
         }
 
-        stderrPipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
+        stdoutPipe.fileHandleForReading.readabilityHandler = { handle in
             let data = handle.availableData
             if data.isEmpty {
                 handle.readabilityHandler = nil
+                outCont.finish()
                 return
             }
-            Task { await self?.handleStderrData(data, from: proc) }
+            outCont.yield(data)
+        }
+
+        stderrPipe.fileHandleForReading.readabilityHandler = { handle in
+            let data = handle.availableData
+            if data.isEmpty {
+                handle.readabilityHandler = nil
+                errCont.finish()
+                return
+            }
+            errCont.yield(data)
         }
 
         proc.terminationHandler = { [weak self] terminated in
             stdoutPipe.fileHandleForReading.readabilityHandler = nil
             stderrPipe.fileHandleForReading.readabilityHandler = nil
+            outCont.finish()
+            errCont.finish()
             Task { await self?.handleTermination(of: terminated) }
         }
 
@@ -264,6 +288,14 @@ actor PiProcessHost {
         let proc = process
         process = nil
         stdinHandle = nil
+        stdoutStreamCont?.finish()
+        stderrStreamCont?.finish()
+        stdoutStreamCont = nil
+        stderrStreamCont = nil
+        stdoutStreamTask?.cancel()
+        stderrStreamTask?.cancel()
+        stdoutStreamTask = nil
+        stderrStreamTask = nil
 
         for (id, continuation) in pending {
             timeoutTasks[id]?.cancel()
@@ -331,9 +363,10 @@ actor PiProcessHost {
         guard proc === process else { return }
         stdoutBuffer.append(data)
 
-        while let newlineIndex = stdoutBuffer.firstIndex(of: 0x0A) {
-            let lineData = stdoutBuffer.subdata(in: stdoutBuffer.startIndex..<newlineIndex)
-            stdoutBuffer.removeSubrange(stdoutBuffer.startIndex...newlineIndex)
+        var searchStart = stdoutBuffer.startIndex
+        while let newlineIndex = stdoutBuffer[searchStart...].firstIndex(of: 0x0A) {
+            let lineData = stdoutBuffer[searchStart..<newlineIndex]
+            searchStart = stdoutBuffer.index(after: newlineIndex)
 
             guard let rawLine = String(data: lineData, encoding: .utf8)?
                 .trimmingCharacters(in: CharacterSet.whitespacesAndNewlines),
@@ -354,6 +387,9 @@ actor PiProcessHost {
             } catch {
                 eventContinuation?.yield(.protocolError(String(rawLine.prefix(1000))))
             }
+        }
+        if searchStart > stdoutBuffer.startIndex {
+            stdoutBuffer.removeSubrange(stdoutBuffer.startIndex..<searchStart)
         }
     }
 
