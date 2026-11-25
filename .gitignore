@@ -1,6 +1,10 @@
 node_modules/
 out/
 release/
+macos/build-out/
+DerivedData/
+xcuserdata/
+*.xcuserstate
 .DS_Store
 *.log
 *.tsbuildinfo

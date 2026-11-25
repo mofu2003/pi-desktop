@@ -1,0 +1,522 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		218EEA07BE033C52B1DC80DB /* PiProcessHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E34ED3DD3286F73AB51CA85 /* PiProcessHost.swift */; };
+		2696E685875E65BC6F70714F /* PiNativeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5050EDD345EFA38F05648D7 /* PiNativeApp.swift */; };
+		278FD506FEE179AE08CD5C81 /* PiMarkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F26995C972C89FA7D7A7ED74 /* PiMarkView.swift */; };
+		2B2E476DE2B1F390F52FFB95 /* SshConfigService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 970D212F92FD64D24279D522 /* SshConfigService.swift */; };
+		3AE5E914BAB56DF52E69AEAA /* CustomizationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2790F1746F824B4350B7BC0 /* CustomizationService.swift */; };
+		4239A4460EB3C874B3ADCE77 /* CustomizeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6089A4B6E7FBBA9FC78F485 /* CustomizeView.swift */; };
+		4884712FC7243AAF79FFC83C /* PiSessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00465DBC102B4492A6CB7FC8 /* PiSessionStore.swift */; };
+		49283367362539443D95E3F7 /* MainWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 342FDC8B77CA75D20E5FEBA3 /* MainWindowView.swift */; };
+		69AAD5374209BEF8DBB42B12 /* PiTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 184B3767D82185399B5A2E44 /* PiTypes.swift */; };
+		9548478EC7A8E15EC31572D6 /* MetricsCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8442189E11B1731A01C4F6D /* MetricsCalculator.swift */; };
+		A42BBB8002304338AAFC4889 /* MessageListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42A8DA1C8E55336D70578CA4 /* MessageListView.swift */; };
+		A9015FAEA19F9E8F6200B82A /* PiNativeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 510D947F304F1E6271BAD110 /* PiNativeTests.swift */; };
+		AEF2B468DFD7560DAAED5AD9 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9EA243D63456A3C73ED801D7 /* Assets.xcassets */; };
+		AF06519E790F4414B7CB7A09 /* icon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 4446EE6988CE7A605C817E4A /* icon.icns */; };
+		B6CD7FFB29C21D0D1411A1F9 /* DialogsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAFE32E149C69DAD79E2E93B /* DialogsView.swift */; };
+		B7C70FDCA4040FB4450C1980 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD4839D7A4CA59BFDA08EBF5 /* SidebarView.swift */; };
+		C890E60DD0F232D03960EA6C /* LibraryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9558C54F0EC4276DC0F39B24 /* LibraryStore.swift */; };
+		D77235DA3A1E21553AD2A70E /* SessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE452B026F581528DD400B38 /* SessionStore.swift */; };
+		F14518D982FCCEAABEEA7418 /* ComposerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3085D1CB8CBBDCFDE7D7D6A /* ComposerView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		D50E09493F255150B469C284 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 480DA068E2BFA74D0D2BE63C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 89A149B0A03BFAB8061E687E;
+			remoteInfo = PiNative;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		00465DBC102B4492A6CB7FC8 /* PiSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PiSessionStore.swift; sourceTree = "<group>"; };
+		184B3767D82185399B5A2E44 /* PiTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PiTypes.swift; sourceTree = "<group>"; };
+		28818034CBF45346DDFF4647 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		342FDC8B77CA75D20E5FEBA3 /* MainWindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindowView.swift; sourceTree = "<group>"; };
+		42A8DA1C8E55336D70578CA4 /* MessageListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageListView.swift; sourceTree = "<group>"; };
+		4446EE6988CE7A605C817E4A /* icon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = icon.icns; sourceTree = "<group>"; };
+		510D947F304F1E6271BAD110 /* PiNativeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PiNativeTests.swift; sourceTree = "<group>"; };
+		6E34ED3DD3286F73AB51CA85 /* PiProcessHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PiProcessHost.swift; sourceTree = "<group>"; };
+		9558C54F0EC4276DC0F39B24 /* LibraryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryStore.swift; sourceTree = "<group>"; };
+		970D212F92FD64D24279D522 /* SshConfigService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SshConfigService.swift; sourceTree = "<group>"; };
+		9EA243D63456A3C73ED801D7 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A3085D1CB8CBBDCFDE7D7D6A /* ComposerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerView.swift; sourceTree = "<group>"; };
+		AAFE32E149C69DAD79E2E93B /* DialogsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DialogsView.swift; sourceTree = "<group>"; };
+		AE452B026F581528DD400B38 /* SessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStore.swift; sourceTree = "<group>"; };
+		BCA7311697F062CD49ADEDC8 /* PiNativeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PiNativeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		BD4839D7A4CA59BFDA08EBF5 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
+		C6089A4B6E7FBBA9FC78F485 /* CustomizeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomizeView.swift; sourceTree = "<group>"; };
+		D708CF007B2083ED775DCAC4 /* PiNative.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PiNative.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		DD2108ECE0C5570CF602C5C1 /* PiNative.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PiNative.entitlements; sourceTree = "<group>"; };
+		E5050EDD345EFA38F05648D7 /* PiNativeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PiNativeApp.swift; sourceTree = "<group>"; };
+		E8442189E11B1731A01C4F6D /* MetricsCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetricsCalculator.swift; sourceTree = "<group>"; };
+		F26995C972C89FA7D7A7ED74 /* PiMarkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PiMarkView.swift; sourceTree = "<group>"; };
+		F2790F1746F824B4350B7BC0 /* CustomizationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomizationService.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		0A42D8C70B53C716471DE59F /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				4446EE6988CE7A605C817E4A /* icon.icns */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		0D49B5D90023117BA7697A02 = {
+			isa = PBXGroup;
+			children = (
+				785948ED7DF9A5F58C06E504 /* PiNative */,
+				FD0F0AD40FE27AC39C5B9B7D /* PiNativeTests */,
+				90D1F45AADA9A2C1B212BF62 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		0F0271610E0DF8A1DC170604 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				F2790F1746F824B4350B7BC0 /* CustomizationService.swift */,
+				9558C54F0EC4276DC0F39B24 /* LibraryStore.swift */,
+				E8442189E11B1731A01C4F6D /* MetricsCalculator.swift */,
+				6E34ED3DD3286F73AB51CA85 /* PiProcessHost.swift */,
+				AE452B026F581528DD400B38 /* SessionStore.swift */,
+				970D212F92FD64D24279D522 /* SshConfigService.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		39CA9CB10F1EEC428B076354 /* State */ = {
+			isa = PBXGroup;
+			children = (
+				00465DBC102B4492A6CB7FC8 /* PiSessionStore.swift */,
+			);
+			path = State;
+			sourceTree = "<group>";
+		};
+		405508F273E7017151B68D9E /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				A3085D1CB8CBBDCFDE7D7D6A /* ComposerView.swift */,
+				C6089A4B6E7FBBA9FC78F485 /* CustomizeView.swift */,
+				AAFE32E149C69DAD79E2E93B /* DialogsView.swift */,
+				342FDC8B77CA75D20E5FEBA3 /* MainWindowView.swift */,
+				42A8DA1C8E55336D70578CA4 /* MessageListView.swift */,
+				F26995C972C89FA7D7A7ED74 /* PiMarkView.swift */,
+				BD4839D7A4CA59BFDA08EBF5 /* SidebarView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		4287E57DEF94E3091303937F /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				184B3767D82185399B5A2E44 /* PiTypes.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		64484C09982C1CF08C9ABBCF /* App */ = {
+			isa = PBXGroup;
+			children = (
+				E5050EDD345EFA38F05648D7 /* PiNativeApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		785948ED7DF9A5F58C06E504 /* PiNative */ = {
+			isa = PBXGroup;
+			children = (
+				9EA243D63456A3C73ED801D7 /* Assets.xcassets */,
+				28818034CBF45346DDFF4647 /* Info.plist */,
+				DD2108ECE0C5570CF602C5C1 /* PiNative.entitlements */,
+				64484C09982C1CF08C9ABBCF /* App */,
+				4287E57DEF94E3091303937F /* Models */,
+				0A42D8C70B53C716471DE59F /* Resources */,
+				0F0271610E0DF8A1DC170604 /* Services */,
+				39CA9CB10F1EEC428B076354 /* State */,
+				405508F273E7017151B68D9E /* Views */,
+			);
+			path = PiNative;
+			sourceTree = "<group>";
+		};
+		90D1F45AADA9A2C1B212BF62 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				D708CF007B2083ED775DCAC4 /* PiNative.app */,
+				BCA7311697F062CD49ADEDC8 /* PiNativeTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		FD0F0AD40FE27AC39C5B9B7D /* PiNativeTests */ = {
+			isa = PBXGroup;
+			children = (
+				510D947F304F1E6271BAD110 /* PiNativeTests.swift */,
+			);
+			path = PiNativeTests;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		1463C6A8E2A90C98B1A17D76 /* PiNativeTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = FF65EC42F49A3C26DCCE8E1C /* Build configuration list for PBXNativeTarget "PiNativeTests" */;
+			buildPhases = (
+				E2EEA3444360C1192234F5C9 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				1F6AF296A83EC63BCD0272EF /* PBXTargetDependency */,
+			);
+			name = PiNativeTests;
+			packageProductDependencies = (
+			);
+			productName = PiNativeTests;
+			productReference = BCA7311697F062CD49ADEDC8 /* PiNativeTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		89A149B0A03BFAB8061E687E /* PiNative */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 58C3332369C620D264FC6E42 /* Build configuration list for PBXNativeTarget "PiNative" */;
+			buildPhases = (
+				0D39B666373E8CBC7E47BAC5 /* Sources */,
+				933EFE8F4C1448AEC90D2843 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = PiNative;
+			packageProductDependencies = (
+			);
+			productName = PiNative;
+			productReference = D708CF007B2083ED775DCAC4 /* PiNative.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		480DA068E2BFA74D0D2BE63C /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+				};
+			};
+			buildConfigurationList = 08E18397D35546E03AB29AB4 /* Build configuration list for PBXProject "PiNative" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 0D49B5D90023117BA7697A02;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 90D1F45AADA9A2C1B212BF62 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				89A149B0A03BFAB8061E687E /* PiNative */,
+				1463C6A8E2A90C98B1A17D76 /* PiNativeTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		933EFE8F4C1448AEC90D2843 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AEF2B468DFD7560DAAED5AD9 /* Assets.xcassets in Resources */,
+				AF06519E790F4414B7CB7A09 /* icon.icns in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		0D39B666373E8CBC7E47BAC5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F14518D982FCCEAABEEA7418 /* ComposerView.swift in Sources */,
+				3AE5E914BAB56DF52E69AEAA /* CustomizationService.swift in Sources */,
+				4239A4460EB3C874B3ADCE77 /* CustomizeView.swift in Sources */,
+				B6CD7FFB29C21D0D1411A1F9 /* DialogsView.swift in Sources */,
+				C890E60DD0F232D03960EA6C /* LibraryStore.swift in Sources */,
+				49283367362539443D95E3F7 /* MainWindowView.swift in Sources */,
+				A42BBB8002304338AAFC4889 /* MessageListView.swift in Sources */,
+				9548478EC7A8E15EC31572D6 /* MetricsCalculator.swift in Sources */,
+				278FD506FEE179AE08CD5C81 /* PiMarkView.swift in Sources */,
+				2696E685875E65BC6F70714F /* PiNativeApp.swift in Sources */,
+				218EEA07BE033C52B1DC80DB /* PiProcessHost.swift in Sources */,
+				4884712FC7243AAF79FFC83C /* PiSessionStore.swift in Sources */,
+				69AAD5374209BEF8DBB42B12 /* PiTypes.swift in Sources */,
+				D77235DA3A1E21553AD2A70E /* SessionStore.swift in Sources */,
+				B7C70FDCA4040FB4450C1980 /* SidebarView.swift in Sources */,
+				2B2E476DE2B1F390F52FFB95 /* SshConfigService.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E2EEA3444360C1192234F5C9 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A9015FAEA19F9E8F6200B82A /* PiNativeTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		1F6AF296A83EC63BCD0272EF /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 89A149B0A03BFAB8061E687E /* PiNative */;
+			targetProxy = D50E09493F255150B469C284 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		11551EBBE62A5BEC94054E9D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 0.6.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		30EE2F3FCA52671ABBD3E5B2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.pi.desktop.PiNativeTests;
+				PRODUCT_MODULE_NAME = PiNativeTests;
+				PRODUCT_NAME = PiNativeTests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Pi.app/Contents/MacOS/Pi";
+			};
+			name = Release;
+		};
+		36E7D5EBDE4C8ACC57D6D555 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 0.6.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		7AB598D2B81FD066E00E020B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.pi.desktop.PiNativeTests;
+				PRODUCT_MODULE_NAME = PiNativeTests;
+				PRODUCT_NAME = PiNativeTests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Pi.app/Contents/MacOS/Pi";
+			};
+			name = Debug;
+		};
+		A91A694A839C5F994CE845FA /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = PiNative/PiNative.entitlements;
+				CODE_SIGN_IDENTITY = "-";
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = NO;
+				INFOPLIST_FILE = PiNative/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = com.pi.desktop.native;
+				PRODUCT_MODULE_NAME = Pi;
+				PRODUCT_NAME = Pi;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		B3B71640B90158B170696ADA /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = PiNative/PiNative.entitlements;
+				CODE_SIGN_IDENTITY = "-";
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = NO;
+				INFOPLIST_FILE = PiNative/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = com.pi.desktop.native;
+				PRODUCT_MODULE_NAME = Pi;
+				PRODUCT_NAME = Pi;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		08E18397D35546E03AB29AB4 /* Build configuration list for PBXProject "PiNative" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				11551EBBE62A5BEC94054E9D /* Debug */,
+				36E7D5EBDE4C8ACC57D6D555 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		58C3332369C620D264FC6E42 /* Build configuration list for PBXNativeTarget "PiNative" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B3B71640B90158B170696ADA /* Debug */,
+				A91A694A839C5F994CE845FA /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		FF65EC42F49A3C26DCCE8E1C /* Build configuration list for PBXNativeTarget "PiNativeTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7AB598D2B81FD066E00E020B /* Debug */,
+				30EE2F3FCA52671ABBD3E5B2 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 480DA068E2BFA74D0D2BE63C /* Project object */;
+}

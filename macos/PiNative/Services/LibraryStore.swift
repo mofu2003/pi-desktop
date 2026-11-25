@@ -55,11 +55,17 @@ final class LibraryStore {
         if let unassignedWorkspace {
             allProjects.append(unassignedWorkspace)
         }
-        var updated: [String: [SessionSummary]] = [:]
-        for project in allProjects where project.ssh == nil {
-            updated[project.path] = SessionStore.listSessions(for: project.path)
+        let paths = allProjects.filter { $0.ssh == nil }.map(\.path)
+        Task {
+            let updated = await Task.detached(priority: .utility) {
+                var map: [String: [SessionSummary]] = [:]
+                for path in paths {
+                    map[path] = SessionStore.listSessions(for: path)
+                }
+                return map
+            }.value
+            self.sessionsByProject = updated
         }
-        sessionsByProject = updated
     }
 
     func addProject(_ project: ProjectInfo) {
