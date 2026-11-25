@@ -536,6 +536,17 @@ private struct ToolExecutionCardView: View {
 
     private var command: String? { args["command"]?.stringValue }
     private var path: String? { args["path"]?.stringValue }
+    private var editPreview: String? {
+        guard toolName.lowercased() == "edit" else { return nil }
+        let replacements = args["edits"]?.arrayValue?.compactMap(\.objectValue) ?? [args]
+        let changes = replacements.compactMap { edit -> String? in
+            guard let old = edit["oldText"]?.stringValue, let new = edit["newText"]?.stringValue else { return nil }
+            let removed = old.isEmpty ? [] : old.components(separatedBy: "\n").map { "- " + $0 }
+            let added = new.isEmpty ? [] : new.components(separatedBy: "\n").map { "+ " + $0 }
+            return (removed + added).joined(separator: "\n")
+        }.joined(separator: "\n")
+        return changes.isEmpty ? nil : changes
+    }
     private var activity: (title: String, icon: String) {
         switch toolName.lowercased() {
         case "bash", "shell": ("执行命令", "terminal")
@@ -607,7 +618,9 @@ private struct ToolExecutionCardView: View {
                     )
                 } else {
                     VStack(alignment: .leading, spacing: 8) {
-                        if !args.isEmpty {
+                        if let editPreview {
+                            CodeBlockView(language: "diff", code: editPreview)
+                        } else if !args.isEmpty {
                             Text("参数")
                                 .font(.callout.weight(.semibold))
                                 .foregroundStyle(.secondary)
@@ -738,10 +751,11 @@ struct MarkdownContentView: View, Equatable {
         case heading(id: Int, level: Int, text: String)
         case prose(id: Int, text: String)
         case code(id: Int, language: String, code: String)
+        case table(id: Int, header: [String], rows: [[String]])
 
         var id: Int {
             switch self {
-            case .heading(let id, _, _), .prose(let id, _), .code(let id, _, _): return id
+            case .heading(let id, _, _), .prose(let id, _), .code(let id, _, _), .table(let id, _, _): return id
             }
         }
     }
@@ -755,12 +769,39 @@ struct MarkdownContentView: View, Equatable {
         var codeLang = ""
         var nextId = 0
 
-        func flushProse() {
-            let joined = proseLines.joined(separator: "\n").trimmingCharacters(in: .newlines)
+        func appendProse(_ lines: ArraySlice<String>) {
+            let joined = lines.joined(separator: "\n").trimmingCharacters(in: .newlines)
             if !joined.isEmpty {
                 result.append(.prose(id: nextId, text: joined))
                 nextId += 1
             }
+        }
+
+        func flushProse() {
+            var start = 0
+            var i = 0
+            while i + 1 < proseLines.count {
+                guard let header = tableCells(proseLines[i]), header.count > 1,
+                      let separator = tableCells(proseLines[i + 1]), separator.count == header.count,
+                      separator.allSatisfy({ cell in
+                          let hyphens = cell.trimmingCharacters(in: CharacterSet(charactersIn: ":"))
+                          return !hyphens.isEmpty && hyphens.allSatisfy { $0 == "-" }
+                      }) else {
+                    i += 1
+                    continue
+                }
+                appendProse(proseLines[start..<i])
+                i += 2
+                var rows: [[String]] = []
+                while i < proseLines.count, let row = tableCells(proseLines[i]), row.count == header.count {
+                    rows.append(row)
+                    i += 1
+                }
+                result.append(.table(id: nextId, header: header, rows: rows))
+                nextId += 1
+                start = i
+            }
+            appendProse(proseLines[start...])
             proseLines.removeAll()
         }
 
@@ -793,6 +834,30 @@ struct MarkdownContentView: View, Equatable {
             flushProse()
         }
         return result
+    }
+
+    private func tableCells(_ line: String) -> [String]? {
+        guard line.contains("|") else { return nil }
+        var text = line.trimmingCharacters(in: .whitespaces)
+        if text.hasPrefix("|") { text.removeFirst() }
+        if text.hasSuffix("|"), !text.hasSuffix("\\|") { text.removeLast() }
+        var cells: [String] = []
+        var cell = ""
+        for character in text {
+            if character == "|" {
+                if cell.last == "\\" {
+                    cell.removeLast()
+                    cell.append(character)
+                } else {
+                    cells.append(cell.trimmingCharacters(in: .whitespaces))
+                    cell = ""
+                }
+            } else {
+                cell.append(character)
+            }
+        }
+        cells.append(cell.trimmingCharacters(in: .whitespaces))
+        return cells
     }
 
     private func parseHeading(_ line: String) -> (Int, String)? {
@@ -829,16 +894,48 @@ struct MarkdownContentView: View, Equatable {
                         .textSelection(.enabled)
                 case .code(_, let lang, let code):
                     CodeBlockView(language: lang, code: code)
+                case .table(_, let header, let rows):
+                    ScrollView(.horizontal) {
+                        Grid(alignment: .leading, horizontalSpacing: 0, verticalSpacing: 0) {
+                            tableRow(header, isHeader: true)
+                            ForEach(rows.indices, id: \.self) { index in
+                                tableRow(rows[index], alternate: index.isMultiple(of: 2))
+                            }
+                        }
+                        .frame(minWidth: 280, alignment: .leading)
+                    }
+                    .background(Color(nsColor: .systemBlue).opacity(0.035), in: .rect(cornerRadius: 14))
+                    .clipShape(.rect(cornerRadius: 14))
                 }
             }
         }
     }
 
+    private func tableRow(_ cells: [String], isHeader: Bool = false, alternate: Bool = false) -> some View {
+        GridRow {
+            ForEach(cells.indices, id: \.self) { column in
+                inlineMarkdownText(cells[column])
+                    .font(.system(size: 13.5, weight: isHeader ? .semibold : .regular))
+                    .textSelection(.enabled)
+                    .frame(minWidth: 68, maxWidth: 260, alignment: .leading)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 9)
+            }
+        }
+        .background(Color(nsColor: .systemBlue).opacity(isHeader ? 0.15 : (alternate ? 0.045 : 0)))
+    }
+
     private func inlineMarkdownText(_ text: String) -> Text {
-        if let attributed = try? AttributedString(
+        if var attributed = try? AttributedString(
             markdown: text,
             options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
         ) {
+            let codeRanges = attributed.runs.compactMap { run in
+                run.inlinePresentationIntent?.contains(.code) == true ? run.range : nil
+            }
+            for range in codeRanges {
+                attributed[range].foregroundColor = Color(nsColor: .systemIndigo)
+            }
             return Text(attributed)
         }
         return Text(text)
@@ -860,9 +957,37 @@ private struct CodeBlockView: View {
         case "zsh": "Zsh"
         case "sh", "shell": "Shell"
         case "console": "终端"
+        case "diff", "patch": "代码改动"
+        case "mermaid": "Mermaid 源码"
         case "": "代码"
         default: languageTag
         }
+    }
+
+    private var tint: Color {
+        switch languageTag.lowercased() {
+        case "bash", "zsh", "sh", "shell", "console": Color(nsColor: .systemTeal)
+        case "mermaid": Color(nsColor: .systemIndigo)
+        default: Color(nsColor: .systemBlue)
+        }
+    }
+
+    private var displayedCode: Text {
+        guard ["diff", "patch"].contains(languageTag.lowercased()) else { return Text(code) }
+        var styled = AttributedString()
+        for (index, line) in code.components(separatedBy: "\n").enumerated() {
+            if index > 0 { styled.append(AttributedString("\n")) }
+            var part = AttributedString(line)
+            if line.hasPrefix("+"), !line.hasPrefix("+++") {
+                part.backgroundColor = Color(nsColor: .systemGreen).opacity(0.20)
+            } else if line.hasPrefix("-"), !line.hasPrefix("---") {
+                part.backgroundColor = Color(nsColor: .systemRed).opacity(0.20)
+            } else if line.hasPrefix("@@") {
+                part.foregroundColor = Color(nsColor: .systemBlue)
+            }
+            styled.append(part)
+        }
+        return Text(styled)
     }
 
     var body: some View {
@@ -870,7 +995,7 @@ private struct CodeBlockView: View {
             HStack {
                 Label(languageLabel, systemImage: "chevron.left.forwardslash.chevron.right")
                     .font(.callout.weight(.medium))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(tint)
                 Spacer()
                 Button {
                     NSPasteboard.general.clearContents()
@@ -893,17 +1018,17 @@ private struct CodeBlockView: View {
             .padding(.vertical, 8)
 
             ScrollView(.horizontal, showsIndicators: true) {
-                Text(code)
+                displayedCode
                     .font(.system(size: 13.5, design: .monospaced))
                     .textSelection(.enabled)
                     .padding(14)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .background(Color.primary.opacity(0.045), in: .rect(cornerRadius: 14))
+        .background(tint.opacity(0.055), in: .rect(cornerRadius: 14))
         .overlay(
             RoundedRectangle(cornerRadius: 14)
-                .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
+                .strokeBorder(tint.opacity(0.18), lineWidth: 1)
                 .allowsHitTesting(false)
         )
     }

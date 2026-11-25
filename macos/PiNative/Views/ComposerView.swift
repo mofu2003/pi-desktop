@@ -402,7 +402,7 @@ struct ComposerView: View {
                     .padding(.vertical, 4)
                 }
                 .buttonStyle(.plain)
-                .disabled(sessionStore.isConnecting || activeRun)
+                .disabled(sessionStore.isConnecting || !sessionStore.isRuntimeConnected || sessionStore.state == nil)
                 .popover(isPresented: $isModelOpen, arrowEdge: .top) {
                     modelAndThinkingPopover
                 }
@@ -531,6 +531,12 @@ struct ComposerView: View {
         return VStack(alignment: .leading, spacing: 12) {
             TextField("搜索模型…", text: $modelQuery)
                 .textFieldStyle(.roundedBorder)
+
+            if sessionStore.isStreaming {
+                Text("切换将在下一次模型调用时生效")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 2) {
