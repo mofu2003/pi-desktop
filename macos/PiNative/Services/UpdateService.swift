@@ -82,27 +82,29 @@ final class UpdateService {
         }
     }
 
-    func checkManually() async {
+    func checkManually(present: (((title: String, body: String, isUpdatePrompt: Bool)) -> Void)? = nil) async {
         guard !isChecking else { return }
         isChecking = true
         defer { isChecking = false }
 
+        let notice: (title: String, body: String, isUpdatePrompt: Bool)
         do {
             let status = try await fetchLatestStatus()
             switch status {
             case .current:
                 availableUpdate = nil
-                alertMessage = ("当前已是最新版本", "Pi \(currentVersion) 已是最新稳定版本。", false)
+                notice = ("当前已是最新版本", "Pi \(currentVersion) 已是最新稳定版本。", false)
             case .unavailable(let version):
                 availableUpdate = nil
-                alertMessage = ("发现新版本 v\(version)", "GitHub Releases 暂未上传适用于本机架构（\(Self.currentArchitecture)）的安装包。", false)
+                notice = ("发现新版本 v\(version)", "GitHub Releases 暂未上传适用于本机架构（\(Self.currentArchitecture)）的安装包。", false)
             case .available(let update):
                 availableUpdate = update
-                alertMessage = ("发现新版本 Pi \(update.version)", "是否立即在软件内下载并安装更新？", true)
+                notice = ("发现新版本 Pi \(update.version)", "是否立即在软件内下载并安装更新？", true)
             }
         } catch {
-            alertMessage = ("检查更新失败", error.localizedDescription, false)
+            notice = ("检查更新失败", error.localizedDescription, false)
         }
+        if let present { present(notice) } else { alertMessage = notice }
     }
 
     func installAvailableUpdate() async {

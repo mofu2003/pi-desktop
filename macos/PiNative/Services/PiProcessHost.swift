@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 enum PiHostEvent: Sendable {
@@ -124,6 +125,43 @@ actor PiProcessHost {
         }
         env["PATH"] = merged.joined(separator: ":")
         return env
+    }
+
+    @MainActor
+    static func openAuthentication(provider: String, useAPIKey: Bool) async throws {
+        let binary = await Task.detached(priority: .userInitiated) { resolvePiBinary() }.value
+        let workspace = NSWorkspace.shared
+        guard let terminal = workspace.urlForApplication(withBundleIdentifier: "com.apple.Terminal") else {
+            throw CocoaError(.fileNoSuchFile, userInfo: [NSLocalizedDescriptionKey: "找不到终端应用。"])
+        }
+
+        func quote(_ value: String) -> String {
+            "'" + value.replacingOccurrences(of: "'", with: "'\"'\"'") + "'"
+        }
+
+        let script = FileManager.default.temporaryDirectory
+            .appendingPathComponent("Pi-auth-\(UUID().uuidString).command")
+        var arguments = [binary, "auth", "login", provider]
+        if useAPIKey { arguments.append("--api-key") }
+        let environment = buildEnvironment(binary: binary)
+        let path = quote(environment["PATH"] ?? "/usr/bin:/bin")
+        let configRoot = quote(SessionStore.agentRoot().path)
+        let contents = """
+        #!/bin/sh
+        trap '/bin/rm -f -- "$0"' EXIT
+        export PATH=\(path)
+        export PI_CODING_AGENT_DIR=\(configRoot)
+        \(arguments.map(quote).joined(separator: " "))
+
+        """
+        do {
+            try Data(contents.utf8).write(to: script, options: .withoutOverwriting)
+            try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: script.path)
+            _ = try await workspace.open([script], withApplicationAt: terminal, configuration: .init())
+        } catch {
+            try? FileManager.default.removeItem(at: script)
+            throw error
+        }
     }
 
     func start(cwd: String, sessionPath: String? = nil, ssh: SshTarget? = nil, idle: Bool = false) async throws -> BootstrapPayload {

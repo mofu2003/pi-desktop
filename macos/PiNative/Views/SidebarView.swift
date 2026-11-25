@@ -13,6 +13,7 @@ struct SidebarView: View {
     let onDeleteSession: (SessionSummary, ProjectInfo, Bool) -> Void
 
     @State private var isArchiveExpanded = false
+    @Environment(\.openSettings) private var openSettings
     @State private var expandedProjects: Set<String> = []
     @State private var groupDialog: (title: String, initial: String, onSave: (String) -> Void)?
     @State private var groupInput = ""
@@ -229,6 +230,16 @@ struct SidebarView: View {
                 .padding(.horizontal, 6)
                 .padding(.vertical, 4)
             }
+
+            SidebarTopActionButton(
+                title: "设置",
+                systemImage: "gearshape",
+                isActive: false,
+                isDisabled: false,
+                action: { openSettings() }
+            )
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
         }
         .alert(groupDialog?.title ?? "", isPresented: Binding(
             get: { groupDialog != nil },
