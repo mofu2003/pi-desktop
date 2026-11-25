@@ -8,6 +8,7 @@ struct MessageListView: View, Equatable {
     let pendingUserMessages: [PendingUserMessage]
     let isStreaming: Bool
     let onColumnChange: (CGRect) -> Void
+    var onOpenFile: ((String, Int?, Int?) -> Void)? = nil
 
     @State private var lastScrollAt: Date = .distantPast
 
@@ -162,7 +163,8 @@ struct MessageListView: View, Equatable {
                                 turn: turn,
                                 toolExecutions: turn.toolCalls.reduce(into: [:]) { executions, call in
                                     executions[call.id] = toolExecutions[call.id]
-                                }
+                                },
+                                onOpenFile: onOpenFile
                             )
                                 .equatable()
                                 .id(item.id)
@@ -254,6 +256,7 @@ struct MessageListView: View, Equatable {
 
         let turn: AssistantTurn
         let toolExecutions: [String: ToolExecution]
+        var onOpenFile: ((String, Int?, Int?) -> Void)? = nil
 
         @State private var isProcessExpanded = false
         @State private var copied = false
@@ -304,7 +307,7 @@ struct MessageListView: View, Equatable {
                         .buttonStyle(.plain)
 
                         if isProcessExpanded || turn.isActiveTurn {
-                            VStack(alignment: .leading, spacing: 10) {
+                            VStack(alignment: .leading, spacing: 7) {
                                 if isProcessExpanded {
                                     ForEach(Array(turn.thinkingBlocks.enumerated()), id: \.offset) { _, thinking in
                                         VStack(alignment: .leading, spacing: 6) {
@@ -312,12 +315,12 @@ struct MessageListView: View, Equatable {
                                                 .font(.callout.weight(.semibold))
                                                 .foregroundStyle(.secondary)
                                             Text(thinking)
-                                                .font(.system(size: 14))
+                                                .font(.system(size: 13.5))
                                                 .foregroundStyle(.secondary)
                                                 .textSelection(.enabled)
                                         }
-                                        .padding(.horizontal, 14)
-                                        .padding(.vertical, 12)
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 10)
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                         .background(
                                             RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -330,18 +333,19 @@ struct MessageListView: View, Equatable {
                                     ToolExecutionCardView(
                                         toolName: tc.name,
                                         args: tc.args,
-                                        execution: toolExecutions[tc.id]
+                                        execution: toolExecutions[tc.id],
+                                        onOpenFile: onOpenFile
                                     )
                                 }
                             }
-                            .padding(.leading, 2)
+                            .padding(.leading, 14)
                         }
                     }
                 }
 
                 // 2. 中间回答正文
                 ForEach(Array(turn.textSegments.enumerated()), id: \.offset) { _, text in
-                    MarkdownContentView(markdown: text).equatable()
+                    RichMarkdownView(markdown: text).equatable()
                 }
 
                 ForEach(turn.imageAttachments) { attachment in
@@ -532,12 +536,63 @@ private struct ToolExecutionCardView: View {
     let toolName: String
     let args: [String: JSONValue]
     let execution: ToolExecution?
+    var onOpenFile: ((String, Int?, Int?) -> Void)? = nil
     @State private var isExpanded = false
 
+    private var normalizedName: String { toolName.lowercased() }
     private var command: String? { args["command"]?.stringValue }
     private var path: String? { args["path"]?.stringValue }
+    private var isRunning: Bool { execution?.isRunning == true }
+    private var isError: Bool { execution?.isError == true }
+
+    private var fileName: String? {
+        guard let path, !path.isEmpty else { return nil }
+        let name = (path as NSString).lastPathComponent
+        return name.isEmpty ? path : name
+    }
+
+    private var lineRangeBounds: (start: Int, end: Int)? {
+        guard normalizedName == "read", let offset = args["offset"]?.intValue, offset > 0 else { return nil }
+        if let limit = args["limit"]?.intValue, limit > 1 {
+            return (offset, offset + limit - 1)
+        }
+        return (offset, offset)
+    }
+
+    private var lineRangeSuffix: String? {
+        guard let bounds = lineRangeBounds else { return nil }
+        if bounds.end > bounds.start {
+            return "#L\(bounds.start)-\(bounds.end)"
+        }
+        return "#L\(bounds.start)"
+    }
+
+    private var diffCounts: (added: Int, removed: Int)? {
+        switch normalizedName {
+        case "write":
+            let content = args["content"]?.stringValue ?? ""
+            let added = content.isEmpty ? 0 : content.components(separatedBy: "\n").count
+            return (added, 0)
+        case "edit":
+            let replacements = args["edits"]?.arrayValue?.compactMap(\.objectValue) ?? [args]
+            var added = 0
+            var removed = 0
+            for item in replacements {
+                if let old = item["oldText"]?.stringValue, !old.isEmpty {
+                    removed += old.components(separatedBy: "\n").count
+                }
+                if let new = item["newText"]?.stringValue, !new.isEmpty {
+                    added += new.components(separatedBy: "\n").count
+                }
+            }
+            return (added == 0 && removed == 0) ? nil : (added, removed)
+        default:
+            return nil
+        }
+    }
+
     private var editPreview: String? {
-        guard toolName.lowercased() == "edit" else { return nil }
+        guard normalizedName == "edit" else { return nil }
         let replacements = args["edits"]?.arrayValue?.compactMap(\.objectValue) ?? [args]
         let changes = replacements.compactMap { edit -> String? in
             guard let old = edit["oldText"]?.stringValue, let new = edit["newText"]?.stringValue else { return nil }
@@ -547,66 +602,138 @@ private struct ToolExecutionCardView: View {
         }.joined(separator: "\n")
         return changes.isEmpty ? nil : changes
     }
-    private var activity: (title: String, icon: String) {
-        switch toolName.lowercased() {
-        case "bash", "shell": ("执行命令", "terminal")
-        case "read": ("读取文件", "doc.text")
-        case "write": ("写入文件", "square.and.pencil")
-        case "edit": ("编辑文件", "pencil")
-        case "grep", "find", "ls": ("查找内容", "magnifyingglass")
-        default: (toolName, "wrench")
+
+    private var actionVerb: String {
+        if isRunning {
+            switch normalizedName {
+            case "bash", "shell": return "正在执行"
+            case "read": return "正在分析"
+            case "write": return "正在创建"
+            case "edit": return "正在编辑"
+            case "grep", "find", "ls": return "正在查找"
+            default: return "正在运行"
+            }
         }
+        if isError {
+            switch normalizedName {
+            case "bash", "shell": return "执行失败"
+            case "read": return "读取失败"
+            case "write": return "写入失败"
+            case "edit": return "编辑失败"
+            default: return "调用失败"
+            }
+        }
+        switch normalizedName {
+        case "bash", "shell": return "已执行"
+        case "read": return "已分析"
+        case "write": return "已创建"
+        case "edit": return "已编辑"
+        case "grep", "find", "ls": return "已查找"
+        default: return "已调用"
+        }
+    }
+
+    private var commandSummary: String {
+        if let desc = args["description"]?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines), !desc.isEmpty {
+            return desc
+        }
+        if let cmd = command?.trimmingCharacters(in: .whitespacesAndNewlines), !cmd.isEmpty {
+            let firstLine = cmd.components(separatedBy: .newlines).first ?? cmd
+            return firstLine.count > 72 ? String(firstLine.prefix(72)) + "…" : firstLine
+        }
+        if let pattern = args["pattern"]?.stringValue {
+            return pattern
+        }
+        if let query = args["query"]?.stringValue {
+            return query
+        }
+        return toolName
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Button {
-                withAnimation(.easeInOut(duration: 0.15)) { isExpanded.toggle() }
-            } label: {
-                HStack(spacing: 8) {
-                    if execution?.isRunning == true {
-                        ProgressView()
-                            .controlSize(.small)
-                    } else {
-                        Image(systemName: activity.icon)
-                            .foregroundStyle(execution?.isError == true ? Color.red : Color.secondary)
-                            .font(.caption)
-                    }
-                    Text(activity.title)
-                        .font(.callout.weight(.medium))
-                    if let detail = command ?? path {
-                        Text(detail)
-                            .font(.system(.callout, design: .monospaced))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                    if let duration = execution?.durationMs {
-                        Text(String(format: "%.1fs", duration / 1000))
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    if let execution, !execution.isRunning {
-                        Text(execution.isError ? "失败" : "完成")
-                            .font(.caption)
-                            .foregroundStyle(execution.isError ? Color.red : Color.secondary)
-                    }
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+            HStack(spacing: 6) {
+                if isRunning {
+                    ProgressView()
+                        .controlSize(.mini)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color.primary.opacity(0.035))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
-                )
+
+                Text(actionVerb)
+                    .font(.system(size: 13.5))
+                    .foregroundStyle(isError ? Color.red : Color.secondary)
+
+                if let path, let fileName, ["read", "write", "edit"].contains(normalizedName) {
+                    let (iconName, iconColor) = FileIconResolver.iconAndColor(forPath: path)
+                    Button {
+                        if let onOpenFile {
+                            onOpenFile(path, lineRangeBounds?.start, lineRangeBounds?.end)
+                        } else if path.hasPrefix("/") {
+                            NSWorkspace.shared.open(URL(fileURLWithPath: path))
+                        } else {
+                            withAnimation(.easeInOut(duration: 0.15)) { isExpanded.toggle() }
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: iconName)
+                                .font(.system(size: 12))
+                                .foregroundStyle(iconColor)
+                            Text(fileName)
+                                .font(.system(size: 13.5, weight: .medium))
+                                .foregroundStyle(.primary.opacity(0.85))
+                            if let lineRangeSuffix {
+                                Text(lineRangeSuffix)
+                                    .font(.system(size: 13, design: .monospaced))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .help(path)
+
+                    if let diffCounts {
+                        HStack(spacing: 5) {
+                            Text("+\(diffCounts.added)")
+                                .font(.system(size: 12.5, weight: .medium, design: .monospaced))
+                                .foregroundStyle(Color(nsColor: .systemGreen))
+                            Text("-\(diffCounts.removed)")
+                                .font(.system(size: 12.5, weight: .medium, design: .monospaced))
+                                .foregroundStyle(Color(nsColor: .systemRed).opacity(0.85))
+                        }
+                        .padding(.leading, 4)
+                    }
+
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.15)) { isExpanded.toggle() }
+                    } label: {
+                        Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(.tertiary)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 2)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.15)) { isExpanded.toggle() }
+                    } label: {
+                        HStack(spacing: 5) {
+                            Text(commandSummary)
+                                .font(.system(size: 13.5))
+                                .foregroundStyle(.primary.opacity(0.82))
+                                .lineLimit(1)
+                            Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundStyle(.secondary.opacity(0.7))
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Spacer(minLength: 0)
             }
-            .buttonStyle(.plain)
+            .padding(.vertical, 1)
 
             if isExpanded {
                 if let command {
@@ -614,7 +741,7 @@ private struct ToolExecutionCardView: View {
                         command: command,
                         output: execution?.output ?? "",
                         exitCode: nil,
-                        isRunning: execution?.isRunning == true
+                        isRunning: isRunning
                     )
                 } else {
                     VStack(alignment: .leading, spacing: 8) {
@@ -909,6 +1036,23 @@ struct MarkdownContentView: View, Equatable {
                 }
             }
         }
+        .tint(Color(nsColor: .systemBlue))
+        .environment(\.openURL, OpenURLAction { url in
+            switch url.scheme?.lowercased() {
+            case "https", "http":
+                return .systemAction
+            case "file":
+                guard url.host == nil || url.host == "" || url.host == "localhost",
+                      url.path.hasPrefix("/"),
+                      FileManager.default.fileExists(atPath: url.path) else {
+                    return .discarded
+                }
+                NSWorkspace.shared.activateFileViewerSelecting([url])
+                return .handled
+            default:
+                return .discarded
+            }
+        })
     }
 
     private func tableRow(_ cells: [String], isHeader: Bool = false, alternate: Bool = false) -> some View {
@@ -930,11 +1074,11 @@ struct MarkdownContentView: View, Equatable {
             markdown: text,
             options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
         ) {
-            let codeRanges = attributed.runs.compactMap { run in
-                run.inlinePresentationIntent?.contains(.code) == true ? run.range : nil
+            let links = attributed.runs.compactMap { run in
+                run.link == nil ? nil : run.range
             }
-            for range in codeRanges {
-                attributed[range].foregroundColor = Color(nsColor: .systemIndigo)
+            for range in links {
+                attributed[range].foregroundColor = Color(nsColor: .systemBlue)
             }
             return Text(attributed)
         }
@@ -967,7 +1111,6 @@ private struct CodeBlockView: View {
     private var tint: Color {
         switch languageTag.lowercased() {
         case "bash", "zsh", "sh", "shell", "console": Color(nsColor: .systemTeal)
-        case "mermaid": Color(nsColor: .systemIndigo)
         default: Color(nsColor: .systemBlue)
         }
     }

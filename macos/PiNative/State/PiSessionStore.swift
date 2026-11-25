@@ -36,6 +36,8 @@ final class PiSessionStore {
     var autoRetryEnabled = true
     var queuedMessages: (steering: [String], followUp: [String]) = ([], [])
     var activeSessionPath: String?
+    /// 流式期间在本地队列等待的消息（支持展开查看、立即发送、编辑、删除）
+    private(set) var localQueuedMessages: [PendingUserMessage] = []
     private(set) var pendingUserMessages: [PendingUserMessage] = []
     var errorMessage: String?
     var notificationMessage: (status: String, text: String)?
@@ -123,6 +125,7 @@ final class PiSessionStore {
             let res = try await host.command(["type": .string("new_session")])
             if res["data"]?["cancelled"]?.boolValue == true { return false }
             queuedMessages = ([], [])
+            localQueuedMessages.removeAll()
             pendingUserMessages.removeAll()
             await refreshAfterRun(generation: currentGen)
             return currentGen == generation
@@ -154,6 +157,7 @@ final class PiSessionStore {
         isRetrying = false
         runningBash = nil
         queuedMessages = ([], [])
+        localQueuedMessages.removeAll()
         pendingUserMessages.removeAll()
         widgets = [:]
         commandStatuses = [:]
@@ -210,8 +214,40 @@ final class PiSessionStore {
         }
 
         errorMessage = nil
+        if isStreaming {
+            localQueuedMessages.append(PendingUserMessage(text: text, images: images, isQueued: true))
+            return true
+        }
+        return await dispatchPrompt(text: text, images: images, streamingBehavior: nil)
+    }
+
+    func removeQueuedMessage(id: UUID) {
+        localQueuedMessages.removeAll { $0.id == id }
+    }
+
+    func popQueuedMessageForEditing(id: UUID) -> PendingUserMessage? {
+        guard let idx = localQueuedMessages.firstIndex(where: { $0.id == id }) else { return nil }
+        return localQueuedMessages.remove(at: idx)
+    }
+
+    func sendQueuedMessageNow(id: UUID) async {
+        guard let idx = localQueuedMessages.firstIndex(where: { $0.id == id }) else { return }
+        let item = localQueuedMessages.remove(at: idx)
+        _ = await dispatchPrompt(
+            text: item.text,
+            images: item.images,
+            streamingBehavior: isStreaming ? "steer" : nil
+        )
+    }
+
+    private func dispatchPrompt(
+        text: String,
+        images: [ImageAttachment],
+        streamingBehavior behaviorOverride: String?
+    ) async -> Bool {
         let currentGen = generation
-        let pending = PendingUserMessage(text: text, images: images, isQueued: isStreaming)
+        let isQueuedSend = behaviorOverride != nil
+        let pending = PendingUserMessage(text: text, images: images, isQueued: isQueuedSend)
         pendingUserMessages.append(pending)
 
         do {
@@ -225,8 +261,8 @@ final class PiSessionStore {
                     payload["images"] = imgJson
                 }
             }
-            if pending.isQueued {
-                payload["streamingBehavior"] = .string(streamingBehavior)
+            if let behaviorOverride {
+                payload["streamingBehavior"] = .string(behaviorOverride)
             }
             _ = try await host.command(payload)
             return true
@@ -235,6 +271,12 @@ final class PiSessionStore {
             if currentGen == generation { errorMessage = error.localizedDescription }
             return false
         }
+    }
+
+    private func flushNextQueuedMessageIfNeeded(expectedGeneration: Int) async {
+        guard expectedGeneration == generation, !isStreaming, !localQueuedMessages.isEmpty else { return }
+        let next = localQueuedMessages.removeFirst()
+        _ = await dispatchPrompt(text: next.text, images: next.images, streamingBehavior: nil)
     }
 
     func runBash(command: String, excludeFromContext: Bool) async -> Bool {
@@ -281,6 +323,7 @@ final class PiSessionStore {
         do {
             _ = try await host.command(["type": .string("clear_queue")])
             queuedMessages = ([], [])
+            localQueuedMessages.removeAll()
             pendingUserMessages.removeAll { clearedIDs.contains($0.id) }
         } catch {
             errorMessage = error.localizedDescription
@@ -513,7 +556,10 @@ final class PiSessionStore {
                 messages = decoded
                 toolExecutions = Self.toolResultMap(from: decoded)
             }
-            Task { [generation] in await refreshAfterRun(generation: generation) }
+            Task { [generation] in
+                await refreshAfterRun(generation: generation)
+                await flushNextQueuedMessageIfNeeded(expectedGeneration: generation)
+            }
         case .rpcEvent(let dict):
             handleRpcEvent(dict)
         }
@@ -528,6 +574,9 @@ final class PiSessionStore {
             flushPendingDeltas()
             isStreaming = false
             isRetrying = false
+            Task { [generation] in
+                await flushNextQueuedMessageIfNeeded(expectedGeneration: generation)
+            }
         case "message_start":
             flushPendingDeltas()
             if let msgVal = dict["message"], let msg: AgentMessage = try? decodeValue(msgVal) {

@@ -37,8 +37,10 @@ enum PiHostError: LocalizedError {
 actor PiProcessHost {
     static let presentationPrompt = """
     默认用简体中文写回复、进度说明和可见的思考摘要。命令、代码、标识符、路径和工具原始输出保留原文。
-    根据内容选择排版。简短回答直接用正文，较长回答用 Markdown 标题分层。横向比较多个选项时优先用 Markdown 表格。
-    流程、分支或架构用图更清楚时，可输出 Mermaid，并用一句正文说明图的结论。给用户复制的命令放进标注语言的独立代码块。
+    先判断是否需要工具。能用已有知识或当前对话回答时，直接给出结论，简单问题简短回答。需要获取实时信息、读取项目文件、验证结果，或用户明确要求执行操作时，再调用相关工具。避免重复查询。
+    较长回答用 Markdown 标题分层，善用恰当的 Emoji（如 🔍、✅、⚠️、💡、📁、🚀）标示重点、状态和章节，避免大段枯燥纯文本；关键提醒可使用 `> [!TIP]`、`> [!WARNING]`、`> [!IMPORTANT]` 提示块突出；横向比较多个选项时优先用 Markdown 表格。
+    流程、分支或架构用图更清楚时，可输出 Mermaid，并用一句正文说明图的结论。给用户复制的命令或代码片段放进标注语言（如 ```swift、```ts）的独立代码块；函数名、变量、类型和配置键使用行内代码 `` `...` ``。
+    引用网站或本地文件时，用清楚的 Markdown 链接文字，例如 [GitHub Release](https://github.com/组织/仓库/releases)。本机文件使用已知的绝对 file:/// URL（例如 [PiSessionStore.swift](file:///.../PiSessionStore.swift)），空格等字符做 URL 编码。SSH 远程文件路径用行内代码，有实际可访问的 URL 时再给链接。只链接已知的地址，不为添加链接而额外搜索或编造地址。
     """
     private var process: Process?
     private var stdinHandle: FileHandle?

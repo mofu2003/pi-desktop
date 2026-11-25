@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		10AF4C7A253AD2964C4989F5 /* QueuedMessagesCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A21C870F201538DE96C0431 /* QueuedMessagesCard.swift */; };
 		218EEA07BE033C52B1DC80DB /* PiProcessHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E34ED3DD3286F73AB51CA85 /* PiProcessHost.swift */; };
 		2696E685875E65BC6F70714F /* PiNativeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5050EDD345EFA38F05648D7 /* PiNativeApp.swift */; };
 		278FD506FEE179AE08CD5C81 /* PiMarkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F26995C972C89FA7D7A7ED74 /* PiMarkView.swift */; };
@@ -16,6 +17,7 @@
 		4239A4460EB3C874B3ADCE77 /* CustomizeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6089A4B6E7FBBA9FC78F485 /* CustomizeView.swift */; };
 		4884712FC7243AAF79FFC83C /* PiSessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00465DBC102B4492A6CB7FC8 /* PiSessionStore.swift */; };
 		49283367362539443D95E3F7 /* MainWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 342FDC8B77CA75D20E5FEBA3 /* MainWindowView.swift */; };
+		639CBFB04B1C1B38407A87C6 /* CodeInspectorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC46BE934E0C423B29116C2B /* CodeInspectorView.swift */; };
 		69AAD5374209BEF8DBB42B12 /* PiTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 184B3767D82185399B5A2E44 /* PiTypes.swift */; };
 		9548478EC7A8E15EC31572D6 /* MetricsCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8442189E11B1731A01C4F6D /* MetricsCalculator.swift */; };
 		A42BBB8002304338AAFC4889 /* MessageListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42A8DA1C8E55336D70578CA4 /* MessageListView.swift */; };
@@ -26,6 +28,7 @@
 		B7C70FDCA4040FB4450C1980 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD4839D7A4CA59BFDA08EBF5 /* SidebarView.swift */; };
 		C890E60DD0F232D03960EA6C /* LibraryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9558C54F0EC4276DC0F39B24 /* LibraryStore.swift */; };
 		D77235DA3A1E21553AD2A70E /* SessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE452B026F581528DD400B38 /* SessionStore.swift */; };
+		F10C3808BCC6757FE3136FD6 /* RichMarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7535F1845361DA9391ACBCC /* RichMarkdownView.swift */; };
 		F14518D982FCCEAABEEA7418 /* ComposerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3085D1CB8CBBDCFDE7D7D6A /* ComposerView.swift */; };
 /* End PBXBuildFile section */
 
@@ -48,6 +51,7 @@
 		4446EE6988CE7A605C817E4A /* icon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = icon.icns; sourceTree = "<group>"; };
 		46D805D5183F475A1363D03B /* UpdateService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateService.swift; sourceTree = "<group>"; };
 		510D947F304F1E6271BAD110 /* PiNativeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PiNativeTests.swift; sourceTree = "<group>"; };
+		6A21C870F201538DE96C0431 /* QueuedMessagesCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueuedMessagesCard.swift; sourceTree = "<group>"; };
 		6E34ED3DD3286F73AB51CA85 /* PiProcessHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PiProcessHost.swift; sourceTree = "<group>"; };
 		9558C54F0EC4276DC0F39B24 /* LibraryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryStore.swift; sourceTree = "<group>"; };
 		970D212F92FD64D24279D522 /* SshConfigService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SshConfigService.swift; sourceTree = "<group>"; };
@@ -55,6 +59,7 @@
 		A3085D1CB8CBBDCFDE7D7D6A /* ComposerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerView.swift; sourceTree = "<group>"; };
 		AAFE32E149C69DAD79E2E93B /* DialogsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DialogsView.swift; sourceTree = "<group>"; };
 		AE452B026F581528DD400B38 /* SessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStore.swift; sourceTree = "<group>"; };
+		B7535F1845361DA9391ACBCC /* RichMarkdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichMarkdownView.swift; sourceTree = "<group>"; };
 		BCA7311697F062CD49ADEDC8 /* PiNativeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PiNativeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		BD4839D7A4CA59BFDA08EBF5 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
 		C6089A4B6E7FBBA9FC78F485 /* CustomizeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomizeView.swift; sourceTree = "<group>"; };
@@ -62,6 +67,7 @@
 		DD2108ECE0C5570CF602C5C1 /* PiNative.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PiNative.entitlements; sourceTree = "<group>"; };
 		E5050EDD345EFA38F05648D7 /* PiNativeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PiNativeApp.swift; sourceTree = "<group>"; };
 		E8442189E11B1731A01C4F6D /* MetricsCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetricsCalculator.swift; sourceTree = "<group>"; };
+		EC46BE934E0C423B29116C2B /* CodeInspectorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeInspectorView.swift; sourceTree = "<group>"; };
 		F26995C972C89FA7D7A7ED74 /* PiMarkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PiMarkView.swift; sourceTree = "<group>"; };
 		F2790F1746F824B4350B7BC0 /* CustomizationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomizationService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -109,12 +115,15 @@
 		405508F273E7017151B68D9E /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				EC46BE934E0C423B29116C2B /* CodeInspectorView.swift */,
 				A3085D1CB8CBBDCFDE7D7D6A /* ComposerView.swift */,
 				C6089A4B6E7FBBA9FC78F485 /* CustomizeView.swift */,
 				AAFE32E149C69DAD79E2E93B /* DialogsView.swift */,
 				342FDC8B77CA75D20E5FEBA3 /* MainWindowView.swift */,
 				42A8DA1C8E55336D70578CA4 /* MessageListView.swift */,
 				F26995C972C89FA7D7A7ED74 /* PiMarkView.swift */,
+				6A21C870F201538DE96C0431 /* QueuedMessagesCard.swift */,
+				B7535F1845361DA9391ACBCC /* RichMarkdownView.swift */,
 				BD4839D7A4CA59BFDA08EBF5 /* SidebarView.swift */,
 			);
 			path = Views;
@@ -256,6 +265,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				639CBFB04B1C1B38407A87C6 /* CodeInspectorView.swift in Sources */,
 				F14518D982FCCEAABEEA7418 /* ComposerView.swift in Sources */,
 				3AE5E914BAB56DF52E69AEAA /* CustomizationService.swift in Sources */,
 				4239A4460EB3C874B3ADCE77 /* CustomizeView.swift in Sources */,
@@ -269,6 +279,8 @@
 				218EEA07BE033C52B1DC80DB /* PiProcessHost.swift in Sources */,
 				4884712FC7243AAF79FFC83C /* PiSessionStore.swift in Sources */,
 				69AAD5374209BEF8DBB42B12 /* PiTypes.swift in Sources */,
+				10AF4C7A253AD2964C4989F5 /* QueuedMessagesCard.swift in Sources */,
+				F10C3808BCC6757FE3136FD6 /* RichMarkdownView.swift in Sources */,
 				D77235DA3A1E21553AD2A70E /* SessionStore.swift in Sources */,
 				B7C70FDCA4040FB4450C1980 /* SidebarView.swift in Sources */,
 				2B2E476DE2B1F390F52FFB95 /* SshConfigService.swift in Sources */,
@@ -329,7 +341,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 7;
+				CURRENT_PROJECT_VERSION = 8;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -348,7 +360,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 0.7.5;
+				MARKETING_VERSION = 0.7.6;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -413,7 +425,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 7;
+				CURRENT_PROJECT_VERSION = 8;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -426,7 +438,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 0.7.5;
+				MARKETING_VERSION = 0.7.6;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";

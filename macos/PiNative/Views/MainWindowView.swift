@@ -30,6 +30,7 @@ struct MainWindowView: View {
     @State private var forkMessages: [ForkableMessage]?
     @State private var isForking = false
     @State private var messageColumn: CGRect = .zero
+    @State private var codeInspector = CodeInspectorStore()
 
     private var activeProject: ProjectInfo? {
         guard let current = sessionStore.project else { return nil }
@@ -98,9 +99,25 @@ struct MainWindowView: View {
             )
             .navigationSplitViewColumnWidth(min: 220, ideal: 256, max: 360)
         } detail: {
-            detailContent
-                .background(Color(nsColor: .textBackgroundColor))
-                .toolbar {
+            HSplitView {
+                detailContent
+                    .frame(minWidth: 420, maxWidth: .infinity, maxHeight: .infinity)
+                if codeInspector.isVisible {
+                    CodeInspectorView(
+                        store: codeInspector,
+                        projectRootPath: activeProject?.ssh == nil ? activeProject?.path : nil
+                    )
+                    .frame(minWidth: 340, idealWidth: 520, maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+            .environment(\.openURL, OpenURLAction { url in
+                if codeInspector.handleFileURL(url) {
+                    return .handled
+                }
+                return .systemAction
+            })
+            .background(Color(nsColor: .textBackgroundColor))
+            .toolbar {
                     ToolbarItem(placement: .navigation) {
                         HStack(spacing: 7) {
                             if !isCustomizing, let activeProject {
@@ -146,6 +163,17 @@ struct MainWindowView: View {
                                 Label("会话操作", systemImage: "ellipsis.circle")
                             }
                         }
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.16)) {
+                                codeInspector.isVisible.toggle()
+                            }
+                        } label: {
+                            Label(
+                                codeInspector.isVisible ? "隐藏代码面板" : "显示代码面板",
+                                systemImage: "sidebar.right"
+                            )
+                        }
+                        .help(codeInspector.isVisible ? "隐藏代码面板" : "显示代码面板")
                     }
                 }
         }
@@ -319,7 +347,18 @@ struct MainWindowView: View {
                         runningBash: sessionStore.runningBash,
                         pendingUserMessages: sessionStore.pendingUserMessages,
                         isStreaming: sessionStore.isStreaming,
-                        onColumnChange: { messageColumn = $0 }
+                        onColumnChange: { messageColumn = $0 },
+                        onOpenFile: { rawPath, startLine, endLine in
+                            let resolvedPath: String
+                            if rawPath.hasPrefix("/") {
+                                resolvedPath = rawPath
+                            } else if let root = activeProject?.path, activeProject?.ssh == nil {
+                                resolvedPath = (root as NSString).appendingPathComponent(rawPath)
+                            } else {
+                                resolvedPath = rawPath
+                            }
+                            codeInspector.open(path: resolvedPath, startLine: startLine, endLine: endLine)
+                        }
                     )
                     .equatable()
                     if sessionStore.state != nil {
@@ -382,12 +421,35 @@ struct MainWindowView: View {
     @ViewBuilder
     private var conversationComposer: some View {
         if messageColumn.width > 0 {
-            composerBlock
+            composerStack
                 .frame(width: messageColumn.width)
                 .padding(.leading, messageColumn.minX)
                 .frame(maxWidth: .infinity, alignment: .leading)
         } else {
-            composerBlock.conversationColumn()
+            composerStack.conversationColumn()
+        }
+    }
+
+    private var composerStack: some View {
+        VStack(spacing: 8) {
+            if !sessionStore.localQueuedMessages.isEmpty {
+                QueuedMessagesCard(
+                    items: sessionStore.localQueuedMessages,
+                    onSendNow: { id in
+                        Task { await sessionStore.sendQueuedMessageNow(id: id) }
+                    },
+                    onEdit: { id in
+                        if let popped = sessionStore.popQueuedMessageForEditing(id: id) {
+                            draft = popped.text
+                            attachments = popped.images
+                        }
+                    },
+                    onDelete: { id in
+                        sessionStore.removeQueuedMessage(id: id)
+                    }
+                )
+            }
+            composerBlock
         }
     }
 
