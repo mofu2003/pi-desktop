@@ -7,6 +7,7 @@ struct MessageListView: View, Equatable {
     let runningBash: (command: String, output: String)?
     let pendingUserMessages: [PendingUserMessage]
     let isStreaming: Bool
+    let onColumnChange: (CGRect) -> Void
 
     @State private var lastScrollAt: Date = .distantPast
 
@@ -207,6 +208,12 @@ struct MessageListView: View, Equatable {
                         .id("bottom-anchor")
                 }
                 .frame(maxWidth: ConversationLayout.columnWidth, alignment: .leading)
+                .onGeometryChange(for: CGRect.self) { proxy in
+                    let frame = proxy.frame(in: .named(ConversationLayout.coordinateSpace))
+                    return CGRect(x: frame.minX, y: 0, width: frame.width, height: 0)
+                } action: { frame in
+                    if frame.width > 0 { onColumnChange(frame) }
+                }
                 .padding(.horizontal, ConversationLayout.horizontalInset)
                 .padding(.vertical, 20)
                 .frame(maxWidth: .infinity)
@@ -296,25 +303,27 @@ struct MessageListView: View, Equatable {
                         }
                         .buttonStyle(.plain)
 
-                        if isProcessExpanded {
+                        if isProcessExpanded || turn.isActiveTurn {
                             VStack(alignment: .leading, spacing: 10) {
-                                ForEach(Array(turn.thinkingBlocks.enumerated()), id: \.offset) { _, thinking in
-                                    VStack(alignment: .leading, spacing: 6) {
-                                        Text("思考过程")
-                                            .font(.callout.weight(.semibold))
-                                            .foregroundStyle(.secondary)
-                                        Text(thinking)
-                                            .font(.system(size: 14))
-                                            .foregroundStyle(.secondary)
-                                            .textSelection(.enabled)
+                                if isProcessExpanded {
+                                    ForEach(Array(turn.thinkingBlocks.enumerated()), id: \.offset) { _, thinking in
+                                        VStack(alignment: .leading, spacing: 6) {
+                                            Text("思考过程")
+                                                .font(.callout.weight(.semibold))
+                                                .foregroundStyle(.secondary)
+                                            Text(thinking)
+                                                .font(.system(size: 14))
+                                                .foregroundStyle(.secondary)
+                                                .textSelection(.enabled)
+                                        }
+                                        .padding(.horizontal, 14)
+                                        .padding(.vertical, 12)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                                .fill(Color.primary.opacity(0.035))
+                                        )
                                     }
-                                    .padding(.horizontal, 14)
-                                    .padding(.vertical, 12)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                            .fill(Color.primary.opacity(0.035))
-                                    )
                                 }
 
                                 ForEach(turn.toolCalls, id: \.id) { tc in
@@ -433,7 +442,7 @@ struct MessageListView: View, Equatable {
             if turn.isActiveTurn {
                 parts.append(turn.toolCalls.contains(where: { toolExecutions[$0.id]?.isRunning == true }) ? "正在执行工具" : "正在思考")
             } else {
-                parts.append("已完成")
+                parts.append(turn.toolCalls.isEmpty ? "已完成" : "工具调用 \(turn.toolCalls.count) 次")
             }
             if let elapsed = turn.elapsedMs {
                 parts.append("用时 \(formatElapsed(elapsed))")
@@ -525,6 +534,19 @@ private struct ToolExecutionCardView: View {
     let execution: ToolExecution?
     @State private var isExpanded = false
 
+    private var command: String? { args["command"]?.stringValue }
+    private var path: String? { args["path"]?.stringValue }
+    private var activity: (title: String, icon: String) {
+        switch toolName.lowercased() {
+        case "bash", "shell": ("执行命令", "terminal")
+        case "read": ("读取文件", "doc.text")
+        case "write": ("写入文件", "square.and.pencil")
+        case "edit": ("编辑文件", "pencil")
+        case "grep", "find", "ls": ("查找内容", "magnifyingglass")
+        default: (toolName, "wrench")
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Button {
@@ -535,18 +557,29 @@ private struct ToolExecutionCardView: View {
                         ProgressView()
                             .controlSize(.small)
                     } else {
-                        Image(systemName: execution?.isError == true ? "xmark.circle.fill" : "checkmark.circle.fill")
-                            .foregroundStyle(execution?.isError == true ? Color.red : Color.green)
+                        Image(systemName: activity.icon)
+                            .foregroundStyle(execution?.isError == true ? Color.red : Color.secondary)
                             .font(.caption)
                     }
-                    Text(toolName)
-                        .font(.system(size: 14, design: .monospaced).weight(.medium))
+                    Text(activity.title)
+                        .font(.callout.weight(.medium))
+                    if let detail = command ?? path {
+                        Text(detail)
+                            .font(.system(.callout, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
                     if let duration = execution?.durationMs {
                         Text(String(format: "%.1fs", duration / 1000))
                             .font(.callout)
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
+                    if let execution, !execution.isRunning {
+                        Text(execution.isError ? "失败" : "完成")
+                            .font(.caption)
+                            .foregroundStyle(execution.isError ? Color.red : Color.secondary)
+                    }
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
@@ -565,34 +598,43 @@ private struct ToolExecutionCardView: View {
             .buttonStyle(.plain)
 
             if isExpanded {
-                VStack(alignment: .leading, spacing: 8) {
-                    if !args.isEmpty {
-                        Text("参数")
-                            .font(.callout.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                        Text(JSONValue.object(args).prettyPrinted)
-                            .font(.system(size: 13, design: .monospaced))
-                            .textSelection(.enabled)
+                if let command {
+                    BashExecutionCardView(
+                        command: command,
+                        output: execution?.output ?? "",
+                        exitCode: nil,
+                        isRunning: execution?.isRunning == true
+                    )
+                } else {
+                    VStack(alignment: .leading, spacing: 8) {
+                        if !args.isEmpty {
+                            Text("参数")
+                                .font(.callout.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                            Text(JSONValue.object(args).prettyPrinted)
+                                .font(.system(size: 13, design: .monospaced))
+                                .textSelection(.enabled)
+                        }
+                        if let output = execution?.output, !output.isEmpty {
+                            Text("输出")
+                                .font(.callout.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                            Text(output)
+                                .font(.system(size: 13, design: .monospaced))
+                                .textSelection(.enabled)
+                        }
                     }
-                    if let output = execution?.output, !output.isEmpty {
-                        Text("输出")
-                            .font(.callout.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                        Text(output)
-                            .font(.system(size: 13, design: .monospaced))
-                            .textSelection(.enabled)
-                    }
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(Color(nsColor: .textBackgroundColor))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .strokeBorder(Color.primary.opacity(0.07), lineWidth: 1)
+                    )
                 }
-                .padding(12)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color(nsColor: .textBackgroundColor))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .strokeBorder(Color.primary.opacity(0.07), lineWidth: 1)
-                )
             }
         }
     }
@@ -623,10 +665,17 @@ private struct BashExecutionCardView: View {
                 }
             }
             if !output.isEmpty {
-                Text(output)
-                    .font(.system(.caption, design: .monospaced))
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                ScrollView(.horizontal) {
+                    Text(output)
+                        .font(.system(.caption, design: .monospaced))
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: true, vertical: false)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            } else if !isRunning {
+                Text("无输出")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
         .padding(.horizontal, 14)
@@ -639,6 +688,18 @@ private struct BashExecutionCardView: View {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
         )
+        .contextMenu {
+            Button("复制命令") {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(command, forType: .string)
+            }
+            if !output.isEmpty {
+                Button("复制输出") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(output, forType: .string)
+                }
+            }
+        }
     }
 }
 
@@ -736,25 +797,35 @@ struct MarkdownContentView: View, Equatable {
 
     private func parseHeading(_ line: String) -> (Int, String)? {
         let trimmed = line.trimmingCharacters(in: .whitespaces)
-        if trimmed.hasPrefix("### ") { return (3, String(trimmed.dropFirst(4))) }
-        if trimmed.hasPrefix("## ") { return (2, String(trimmed.dropFirst(3))) }
-        if trimmed.hasPrefix("# ") { return (1, String(trimmed.dropFirst(2))) }
-        return nil
+        let level = trimmed.prefix { $0 == "#" }.count
+        guard (1...6).contains(level), trimmed.dropFirst(level).first?.isWhitespace == true else { return nil }
+        let title = trimmed.dropFirst(level).trimmingCharacters(in: .whitespaces)
+        return title.isEmpty ? nil : (level, title)
+    }
+
+    private func headingSize(_ level: Int) -> CGFloat {
+        switch level {
+        case 1: 23
+        case 2: 21
+        case 3: 19
+        default: 17
+        }
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             ForEach(segments) { segment in
                 switch segment {
                 case .heading(_, let level, let text):
                     inlineMarkdownText(text)
-                        .font(.system(size: level == 1 ? 20 : (level == 2 ? 17.5 : 16), weight: .semibold))
-                        .padding(.top, 4)
+                        .font(.system(size: headingSize(level), weight: .semibold))
+                        .accessibilityAddTraits(.isHeader)
+                        .padding(.top, 8)
                         .textSelection(.enabled)
                 case .prose(_, let text):
                     inlineMarkdownText(text)
-                        .font(.system(size: 15))
-                        .lineSpacing(5)
+                        .font(.system(size: 14.5))
+                        .lineSpacing(7)
                         .textSelection(.enabled)
                 case .code(_, let lang, let code):
                     CodeBlockView(language: lang, code: code)

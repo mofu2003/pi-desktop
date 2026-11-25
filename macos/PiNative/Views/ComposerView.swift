@@ -136,7 +136,6 @@ struct ComposerView: View {
 
             metricsBar
         }
-        .frame(maxWidth: ConversationLayout.columnWidth)
         .frame(maxWidth: .infinity)
     }
 

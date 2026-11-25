@@ -35,6 +35,11 @@ enum PiHostError: LocalizedError {
 }
 
 actor PiProcessHost {
+    static let presentationPrompt = """
+    默认用简体中文写回复、进度说明和可见的思考摘要。命令、代码、标识符、路径和工具原始输出保留原文。
+    根据内容选择排版。简短回答直接用正文，较长回答用 Markdown 标题分层。横向比较多个选项时优先用 Markdown 表格。
+    流程、分支或架构用图更清楚时，可输出 Mermaid，并用一句正文说明图的结论。给用户复制的命令放进标注语言的独立代码块。
+    """
     private var process: Process?
     private var stdinHandle: FileHandle?
     private var stdoutBuffer = Data()
@@ -148,7 +153,7 @@ actor PiProcessHost {
             proc.executableURL = URL(fileURLWithPath: "/usr/bin/ssh")
             proc.arguments = try SshConfigService.buildSpawnArguments(target: ssh, idle: idle, sessionPath: sessionPath)
         } else {
-            var args = ["--mode", "rpc"]
+            var args = ["--mode", "rpc", "--append-system-prompt", Self.presentationPrompt]
             if idle {
                 args.append(contentsOf: ["--no-session", "--no-extensions"])
             } else if let sessionPath, !sessionPath.isEmpty {

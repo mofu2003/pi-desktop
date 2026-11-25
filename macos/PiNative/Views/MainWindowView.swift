@@ -4,6 +4,15 @@ import SwiftUI
 enum ConversationLayout {
     static let columnWidth: CGFloat = 740
     static let horizontalInset: CGFloat = 28
+    static let coordinateSpace = "conversation"
+}
+
+extension View {
+    func conversationColumn(alignment: Alignment = .center) -> some View {
+        frame(maxWidth: ConversationLayout.columnWidth, alignment: alignment)
+            .padding(.horizontal, ConversationLayout.horizontalInset)
+            .frame(maxWidth: .infinity)
+    }
 }
 
 struct MainWindowView: View {
@@ -20,6 +29,7 @@ struct MainWindowView: View {
     @State private var deleteTarget: (session: SessionSummary, project: ProjectInfo, permanent: Bool)?
     @State private var forkMessages: [ForkableMessage]?
     @State private var isForking = false
+    @State private var messageColumn: CGRect = .zero
 
     private var activeProject: ProjectInfo? {
         guard let current = sessionStore.project else { return nil }
@@ -308,12 +318,12 @@ struct MainWindowView: View {
                         toolExecutions: sessionStore.toolExecutions,
                         runningBash: sessionStore.runningBash,
                         pendingUserMessages: sessionStore.pendingUserMessages,
-                        isStreaming: sessionStore.isStreaming
+                        isStreaming: sessionStore.isStreaming,
+                        onColumnChange: { messageColumn = $0 }
                     )
                     .equatable()
                     if sessionStore.state != nil {
-                        composerBlock
-                            .padding(.horizontal, ConversationLayout.horizontalInset)
+                        conversationComposer
                             .padding(.top, 26)
                             .padding(.bottom, 14)
                             .background(
@@ -331,6 +341,7 @@ struct MainWindowView: View {
                             .zIndex(10)
                     }
                 }
+                .coordinateSpace(name: ConversationLayout.coordinateSpace)
             } else {
                 VStack(spacing: 0) {
                     Spacer(minLength: 24)
@@ -339,8 +350,8 @@ struct MainWindowView: View {
                             projectName: activeProject?.ssh?.displayLabel ?? activeProject?.name
                         )
                         composerBlock
+                            .conversationColumn()
                     }
-                    .padding(.horizontal, ConversationLayout.horizontalInset)
                     Spacer(minLength: 40)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -365,6 +376,18 @@ struct MainWindowView: View {
                 .help(sessionStore.errorMessage ?? "重新连接 Pi")
                 .accessibilityHint("重新连接 Pi")
             }
+        }
+    }
+
+    @ViewBuilder
+    private var conversationComposer: some View {
+        if messageColumn.width > 0 {
+            composerBlock
+                .frame(width: messageColumn.width)
+                .padding(.leading, messageColumn.minX)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+            composerBlock.conversationColumn()
         }
     }
 

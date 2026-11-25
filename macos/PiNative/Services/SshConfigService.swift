@@ -203,7 +203,8 @@ enum SshConfigService {
         let normalized = try normalizeTargetInput(target.host)
         let port = target.port ?? normalized.port
 
-        var piArgs = ["pi", "--mode", "rpc"]
+        var piArgs = ["pi", "--mode", "rpc", "--append-system-prompt",
+                      shellSingleQuote(PiProcessHost.presentationPrompt)]
         if idle {
             piArgs.append(contentsOf: ["--no-session", "--no-extensions"])
         } else if let sessionPath, !sessionPath.isEmpty {
