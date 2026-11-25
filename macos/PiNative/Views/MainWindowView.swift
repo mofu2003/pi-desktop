@@ -1,6 +1,11 @@
 import AppKit
 import SwiftUI
 
+enum ConversationLayout {
+    static let columnWidth: CGFloat = 740
+    static let horizontalInset: CGFloat = 28
+}
+
 struct MainWindowView: View {
     @Bindable var sessionStore: PiSessionStore
     @Bindable var libraryStore: LibraryStore
@@ -24,7 +29,7 @@ struct MainWindowView: View {
     }
 
     private var hasConversation: Bool {
-        !sessionStore.messages.isEmpty || sessionStore.optimisticUser != nil || sessionStore.runningBash != nil
+        !sessionStore.messages.isEmpty || !sessionStore.pendingUserMessages.isEmpty || sessionStore.runningBash != nil
     }
 
     private var canChooseProject: Bool {
@@ -302,13 +307,13 @@ struct MainWindowView: View {
                         messages: sessionStore.messages,
                         toolExecutions: sessionStore.toolExecutions,
                         runningBash: sessionStore.runningBash,
-                        optimisticUser: sessionStore.optimisticUser,
+                        pendingUserMessages: sessionStore.pendingUserMessages,
                         isStreaming: sessionStore.isStreaming
                     )
                     .equatable()
                     if sessionStore.state != nil {
                         composerBlock
-                            .padding(.horizontal, 28)
+                            .padding(.horizontal, ConversationLayout.horizontalInset)
                             .padding(.top, 26)
                             .padding(.bottom, 14)
                             .background(
@@ -335,7 +340,7 @@ struct MainWindowView: View {
                         )
                         composerBlock
                     }
-                    .padding(.horizontal, 24)
+                    .padding(.horizontal, ConversationLayout.horizontalInset)
                     Spacer(minLength: 40)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

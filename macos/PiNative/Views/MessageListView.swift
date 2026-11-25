@@ -5,7 +5,7 @@ struct MessageListView: View, Equatable {
     let messages: [AgentMessage]
     let toolExecutions: [String: ToolExecution]
     let runningBash: (command: String, output: String)?
-    let optimisticUser: (text: String, images: [ImageAttachment])?
+    let pendingUserMessages: [PendingUserMessage]
     let isStreaming: Bool
 
     @State private var lastScrollAt: Date = .distantPast
@@ -14,8 +14,7 @@ struct MessageListView: View, Equatable {
         lhs.isStreaming == rhs.isStreaming
             && lhs.runningBash?.command == rhs.runningBash?.command
             && lhs.runningBash?.output == rhs.runningBash?.output
-            && lhs.optimisticUser?.text == rhs.optimisticUser?.text
-            && lhs.optimisticUser?.images == rhs.optimisticUser?.images
+            && lhs.pendingUserMessages == rhs.pendingUserMessages
             && lhs.messages == rhs.messages
             && lhs.toolExecutions == rhs.toolExecutions
     }
@@ -199,17 +198,16 @@ struct MessageListView: View, Equatable {
                         .id("running-bash")
                     }
 
-                    if let optimisticUser {
-                        UserBubbleView(text: optimisticUser.text, images: optimisticUser.images)
-                            .id("optimistic-user")
+                    ForEach(pendingUserMessages) { pending in
+                        UserBubbleView(text: pending.text, images: pending.images)
                     }
 
                     Color.clear
                         .frame(height: 150)
                         .id("bottom-anchor")
                 }
-                .frame(maxWidth: 740, alignment: .leading)
-                .padding(.horizontal, 28)
+                .frame(maxWidth: ConversationLayout.columnWidth, alignment: .leading)
+                .padding(.horizontal, ConversationLayout.horizontalInset)
                 .padding(.vertical, 20)
                 .frame(maxWidth: .infinity)
             }
@@ -218,6 +216,11 @@ struct MessageListView: View, Equatable {
                 withAnimation(.easeOut(duration: 0.14)) {
                     proxy.scrollTo("bottom-anchor", anchor: .bottom)
                 }
+            }
+            .onChange(of: pendingUserMessages.last?.id, initial: true) { previous, next in
+                guard let next, previous != next || messages.isEmpty else { return }
+                lastScrollAt = Date()
+                proxy.scrollTo("bottom-anchor", anchor: .bottom)
             }
             .onChange(of: messages.last?.content?.plainText.count ?? 0) { _, _ in
                 guard isStreaming else { return }
@@ -483,6 +486,7 @@ struct MessageListView: View, Equatable {
 private struct UserBubbleView: View {
     let text: String
     let images: [ImageAttachment]
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         HStack {
@@ -505,18 +509,12 @@ private struct UserBubbleView: View {
                     Text(text)
                         .font(.system(size: 15))
                         .textSelection(.enabled)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 11)
-                        .background(
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .fill(Color(nsColor: .controlBackgroundColor))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
-                        )
                 }
             }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 11)
+            .background(Color(nsColor: .systemBlue).opacity(colorScheme == .dark ? 0.24 : 0.13),
+                        in: .rect(cornerRadius: 14))
         }
     }
 }
@@ -781,12 +779,27 @@ private struct CodeBlockView: View {
     let code: String
     @State private var copied = false
 
+    private var languageTag: String {
+        language.split(whereSeparator: \.isWhitespace).first.map(String.init) ?? ""
+    }
+
+    private var languageLabel: String {
+        switch languageTag.lowercased() {
+        case "bash": "Bash"
+        case "zsh": "Zsh"
+        case "sh", "shell": "Shell"
+        case "console": "终端"
+        case "": "代码"
+        default: languageTag
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Text(language.isEmpty ? "code" : language)
-                    .font(.callout.monospaced())
-                    .foregroundStyle(.secondary)
+                Label(languageLabel, systemImage: "chevron.left.forwardslash.chevron.right")
+                    .font(.callout.weight(.medium))
+                    .foregroundStyle(.primary)
                 Spacer()
                 Button {
                     NSPasteboard.general.clearContents()
@@ -797,17 +810,16 @@ private struct CodeBlockView: View {
                         copied = false
                     }
                 } label: {
-                    Label(copied ? "已复制" : "复制", systemImage: copied ? "checkmark" : "doc.on.doc")
+                    Label(copied ? "已复制" : "复制代码", systemImage: copied ? "checkmark" : "doc.on.doc")
+                        .labelStyle(.iconOnly)
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
+                .help(copied ? "已复制" : "复制代码")
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
-            .background(Color.primary.opacity(0.04))
-
-            Divider()
 
             ScrollView(.horizontal, showsIndicators: true) {
                 Text(code)
@@ -817,13 +829,11 @@ private struct CodeBlockView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color(nsColor: .controlBackgroundColor))
-        )
+        .background(Color.primary.opacity(0.045), in: .rect(cornerRadius: 14))
         .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.1), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 14)
+                .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
+                .allowsHitTesting(false)
         )
     }
 }

@@ -8,6 +8,13 @@ enum SessionProjectTarget: Sendable {
     case project(ProjectInfo)
 }
 
+struct PendingUserMessage: Identifiable, Equatable {
+    let id = UUID()
+    let text: String
+    let images: [ImageAttachment]
+    let isQueued: Bool
+}
+
 @Observable
 @MainActor
 final class PiSessionStore {
@@ -29,7 +36,7 @@ final class PiSessionStore {
     var autoRetryEnabled = true
     var queuedMessages: (steering: [String], followUp: [String]) = ([], [])
     var activeSessionPath: String?
-    var optimisticUser: (text: String, images: [ImageAttachment])?
+    private(set) var pendingUserMessages: [PendingUserMessage] = []
     var errorMessage: String?
     var notificationMessage: (status: String, text: String)?
     var statusText: String?
@@ -116,6 +123,7 @@ final class PiSessionStore {
             let res = try await host.command(["type": .string("new_session")])
             if res["data"]?["cancelled"]?.boolValue == true { return false }
             queuedMessages = ([], [])
+            pendingUserMessages.removeAll()
             await refreshAfterRun(generation: currentGen)
             return currentGen == generation
         } catch {
@@ -146,7 +154,7 @@ final class PiSessionStore {
         isRetrying = false
         runningBash = nil
         queuedMessages = ([], [])
-        optimisticUser = nil
+        pendingUserMessages.removeAll()
         widgets = [:]
         commandStatuses = [:]
         state = nil
@@ -202,9 +210,9 @@ final class PiSessionStore {
         }
 
         errorMessage = nil
-        if !isStreaming {
-            optimisticUser = (text, images)
-        }
+        let currentGen = generation
+        let pending = PendingUserMessage(text: text, images: images, isQueued: isStreaming)
+        pendingUserMessages.append(pending)
 
         do {
             var payload: [String: JSONValue] = [
@@ -217,14 +225,14 @@ final class PiSessionStore {
                     payload["images"] = imgJson
                 }
             }
-            if isStreaming {
+            if pending.isQueued {
                 payload["streamingBehavior"] = .string(streamingBehavior)
             }
             _ = try await host.command(payload)
             return true
         } catch {
-            optimisticUser = nil
-            errorMessage = error.localizedDescription
+            pendingUserMessages.removeAll { $0.id == pending.id }
+            if currentGen == generation { errorMessage = error.localizedDescription }
             return false
         }
     }
@@ -269,9 +277,11 @@ final class PiSessionStore {
     }
 
     func clearQueue() async {
+        let clearedIDs = Set(pendingUserMessages.filter(\.isQueued).map(\.id))
         do {
             _ = try await host.command(["type": .string("clear_queue")])
             queuedMessages = ([], [])
+            pendingUserMessages.removeAll { clearedIDs.contains($0.id) }
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -499,7 +509,6 @@ final class PiSessionStore {
         case .agentEnded(let decoded):
             flushPendingDeltas()
             isStreaming = false
-            optimisticUser = nil
             if let decoded {
                 messages = decoded
                 toolExecutions = Self.toolResultMap(from: decoded)
@@ -522,7 +531,6 @@ final class PiSessionStore {
         case "message_start":
             flushPendingDeltas()
             if let msgVal = dict["message"], let msg: AgentMessage = try? decodeValue(msgVal) {
-                if msg.role == "user" { optimisticUser = nil }
                 upsertMessage(msg)
             }
         case "message_update":
@@ -664,6 +672,13 @@ final class PiSessionStore {
         if let idx = messages.lastIndex(where: { $0.role == msg.role && abs($0.timestamp - msg.timestamp) < 1 }) {
             messages[idx] = msg
         } else {
+            if msg.role == "user", !pendingUserMessages.isEmpty {
+                let text = msg.content?.plainText.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                let index = pendingUserMessages.firstIndex {
+                    $0.text.trimmingCharacters(in: .whitespacesAndNewlines) == text
+                } ?? pendingUserMessages.firstIndex { !$0.isQueued }
+                if let index { pendingUserMessages.remove(at: index) }
+            }
             messages.append(msg)
         }
     }
@@ -828,7 +843,6 @@ final class PiSessionStore {
             if targetGen == generation { stats = decoded }
         }
         guard targetGen == generation else { return }
-        optimisticUser = nil
         statusText = nil
         isRetrying = false
     }

@@ -103,6 +103,10 @@ struct ComposerView: View {
         !isDisabled && (!draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !attachments.isEmpty)
     }
 
+    private static var isComposingText: Bool {
+        (NSApp.keyWindow?.firstResponder as? any NSTextInputClient)?.hasMarkedText() == true
+    }
+
     var body: some View {
         VStack(spacing: 10) {
             VStack(alignment: .leading, spacing: 6) {
@@ -132,7 +136,7 @@ struct ComposerView: View {
 
             metricsBar
         }
-        .frame(maxWidth: 684)
+        .frame(maxWidth: ConversationLayout.columnWidth)
         .frame(maxWidth: .infinity)
     }
 
@@ -223,7 +227,8 @@ struct ComposerView: View {
             }
             .padding(8)
         }
-        .frame(width: 684, height: menuHeight)
+        .frame(maxWidth: .infinity)
+        .frame(height: menuHeight)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(Color(nsColor: .controlBackgroundColor))
@@ -298,29 +303,37 @@ struct ComposerView: View {
             .padding(.top, attachments.isEmpty ? 14 : 6)
             .padding(.bottom, 4)
             .onKeyPress(.upArrow) {
+                guard !Self.isComposingText else { return .ignored }
                 guard !filteredSlashCommands.isEmpty else { return .ignored }
                 selectedSlashIndex = selectedSlashIndex > 0 ? selectedSlashIndex - 1 : filteredSlashCommands.count - 1
                 return .handled
             }
             .onKeyPress(.downArrow) {
+                guard !Self.isComposingText else { return .ignored }
                 guard !filteredSlashCommands.isEmpty else { return .ignored }
                 selectedSlashIndex = selectedSlashIndex < filteredSlashCommands.count - 1 ? selectedSlashIndex + 1 : 0
                 return .handled
             }
             .onKeyPress(.tab) {
+                guard !Self.isComposingText else { return .ignored }
                 guard !filteredSlashCommands.isEmpty,
                       filteredSlashCommands.indices.contains(selectedSlashIndex) else { return .ignored }
                 draft = "/\(filteredSlashCommands[selectedSlashIndex].id) "
                 return .handled
             }
-            .onKeyPress(.return) {
+            .onKeyPress(keys: [.return]) { press in
+                guard !Self.isComposingText else { return .ignored }
+                if press.modifiers.contains(.shift) {
+                    if let editor = NSApp.keyWindow?.firstResponder as? NSTextView {
+                        editor.insertNewlineIgnoringFieldEditor(nil)
+                    } else {
+                        draft += "\n"
+                    }
+                    return .handled
+                }
                 if !filteredSlashCommands.isEmpty,
                    filteredSlashCommands.indices.contains(selectedSlashIndex) {
                     draft = "/\(filteredSlashCommands[selectedSlashIndex].id) "
-                    return .handled
-                }
-                if NSEvent.modifierFlags.contains(.shift) {
-                    draft += "\n"
                     return .handled
                 }
                 if canSend {
@@ -417,6 +430,7 @@ struct ComposerView: View {
                     }
                     .buttonStyle(.plain)
                     .disabled(!canSend)
+                    .accessibilityLabel("发送消息")
                     .help("发送消息")
                 }
             }
